@@ -1,24 +1,23 @@
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
+# Runtime data
+/data/
+/config/*.local
+/backups/
+*.db
+*.db-shm
+*.db-wal
 
-# Test binary, built with `go test -c`
-*.test
+# Secrets
+.env
+*.key
+*.pem
+!*.example
 
-# Output of the go coverage tool, specifically when used with LiteIDE
-*.out
+# Build output
+/bin/
+/dist/
+coverage.out
 
-# dont want to share go.sum
-go.sum
-
-# Dependency directories (remove the comment below to include it)
-# vendor/
-
-# IntelliJ IDEA
-.idea
-
-# skip the database folder
-database
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store

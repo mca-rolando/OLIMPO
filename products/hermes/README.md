@@ -1,106 +1,117 @@
-# Dynamic DNS Server for Docker with Web UI written in Go
+# HermesDDNS
 
-![Build status](https://img.shields.io/github/actions/workflow/status/benjaminbear/docker-ddns-server/build.yml)
+HermesDDNS is a centrally managed, self-hosted Dynamic DNS platform designed for UniFi Dream Machine (UDM) fleets. It is derived from Benjamin Bärthlein's `docker-ddns-server` and retains the original MIT attribution while introducing a new device-oriented architecture, hashed DDNS credentials, automatic hostname provisioning, audit logging, release metadata, and a path toward managed UDM agents and MCA-Secure-Downloads integration.
 
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/benjaminbear/docker-ddns-server)
-![Go version](https://img.shields.io/github/go-mod/go-version/benjaminbear/docker-ddns-server?filename=dyndns%2Fgo.mod)
-![License](https://img.shields.io/github/license/benjaminbear/docker-ddns-server)
+> Current release: **26.08-01** — Foundation / Core Milestone.
 
-With docker-ddns-server you can set up your own dynamic DNS server. This project is inspired by https://github.com/dprandzioch/docker-ddns . In addition to the original version, you can setup and maintain your dyndns entries via simple web ui.
+## What 26.08-01 implements
 
-<p float="left">
-<img src="https://raw.githubusercontent.com/benjaminbear/docker-ddns-server/master/img/addhost.png" width="285">
-<img src="https://raw.githubusercontent.com/benjaminbear/docker-ddns-server/master/img/listhosts.png" width="285">
-<img src="https://raw.githubusercontent.com/benjaminbear/docker-ddns-server/master/img/listlogs.png" width="285">
-</p>
+- HermesDDNS branding and repository/module ownership.
+- `hermesddns` server and initial `hermesctl` CLI.
+- Version/build metadata and `/health` endpoint.
+- New SQLite data model: Domain, Device, Host, DDNSCredential, UpdateLog.
+- High-entropy DDNS API keys stored only as SHA-256 hashes.
+- DynDNS-compatible endpoints: `/update`, `/nic/update`, `/v2/update`, `/v3/update`.
+- Automatic host creation on the first valid device update.
+- Device-to-host ownership enforcement.
+- `good <ip>` and `nochg <ip>` responses.
+- BIND9 updates through `nsupdate`.
+- Minimal administrative REST API for bootstrap/testing, including manual credential rotation primitives.
+- Docker Compose deployment foundation.
+- Architecture & Functional Specification v1.0 source documentation and UI storyboards.
 
-## Installation
+## Quick start (development)
 
-You can either take the docker image or build it on your own.
+```bash
+cp .env.example .env
+vi .env
 
-### Using the docker image
-
-https://registry.hub.docker.com/r/bbaerthlein/docker-ddns-server
-
-Just customize this to your needs and run:
-
-```
-docker run -it -d \
-    -p 8080:8080 \
-    -p 53:53 \
-    -p 53:53/udp \
-    -v /somefolder:/var/cache/bind \
-    -v /someotherfolder:/root/database \
-    -e DDNS_ADMIN_LOGIN=admin:123455546. \
-    -e DDNS_DOMAINS=dyndns.example.com \
-    -e DDNS_PARENT_NS=ns.example.com \
-    -e DDNS_DEFAULT_TTL=3600 \
-    --name=dyndns \
-    bbaerthlein/docker-ddns-server:latest
+docker compose build
+docker compose up -d
+curl http://127.0.0.1:8080/health
 ```
 
-### Using docker-compose
+### Bootstrap a managed domain
 
-You can also use Docker Compose to set up this project. For an example `docker-compose.yml`, please refer to this file: https://github.com/benjaminbear/docker-ddns-server/blob/master/deployment/docker-compose.yml
+If `HERMES_ADMIN_LOGIN` is configured, add `-u 'admin:password'` to the API calls.
 
-### Configuration
-
-`DDNS_ADMIN_LOGIN` is a htpasswd username password combination used for the web ui. You can create one by using htpasswd:
-```
-htpasswd -nb user password
-```
-If you want to embed this into a docker-compose.yml you have to double the dollar signs for escaping:
-```
-echo $(htpasswd -nb user password) | sed -e s/\\$/\\$\\$/g
-```
-If `DDNS_ADMIN_LOGIN` is not set, all /admin routes are without protection. (use case: auth proxy)
-
-`DDNS_DOMAINS` are the domains of the webservice and the domain zones of your dyndns server (see DNS Setup) i.e. `dyndns.example.com,dyndns.example.org` (comma separated list)
-
-`DDNS_PARENT_NS` is the parent name server of your domain i.e. `ns.example.com`
-
-`DDNS_DEFAULT_TTL` is the default TTL of your dyndns server.
-
-`DDNS_CLEAR_LOG_INTERVAL` optional: clear log entries automatically in days (integer) e.g. `DDNS_CLEAR_LOG_INTERVAL:30`
-
-`DDNS_ALLOW_WILDCARD` optional: allows all `*.subdomain.dyndns.example.com` to point to your ip (boolean) e.g. `true`
-
-`DDNS_LOGOUT_URL` optional: allows a logout redirect to certain url by clicking the logout button (string) e.g. `https://example.com` 
-
-### DNS setup
-
-If your parent domain is `example.com` and you want your dyndns domain to be `dyndns.example.com`,
-an example domain of your dyndns server would be `blog.dyndns.example.com`.
-
-You have to add these entries to your parent dns server:
-```
-dyndns                   IN NS      ns
-ns                       IN A       <put ipv4 of dns server here>
-ns                       IN AAAA    <optional, put ipv6 of dns server here>
+```bash
+curl -X POST http://127.0.0.1:8080/api/v1/domains \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"ddns.example.com","default_ttl":300}'
 ```
 
-## Updating entry
+### Create a UDM device identity
 
-After you have added a host via the web ui you can setup your router.
-Example update URL:
-
-```
-http://dyndns.example.com:8080/update?hostname=blog.dyndns.example.com&myip=1.2.3.4
-or
-http://username:password@dyndns.example.com:8080/update?hostname=blog.dyndns.example.com&myip=1.2.3.4
+```bash
+curl -X POST http://127.0.0.1:8080/api/v1/devices \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"COR-P-TEST","display_name":"Test UDM","type":"UDM-SE"}'
 ```
 
-this updates the host `blog.dyndns.example.com` with the IP 1.2.3.4. You have to setup basic authentication with the username and password from the web ui.
+The response includes the DDNS API key **once**. The database stores only the key hash. By default, automatic host creation is restricted to the device name or a device-name prefix such as `cor-p-test-wan2`; set `HERMES_AUTOCREATE_POLICY=any` only if you intentionally want unrestricted first-claim behavior within managed zones.
 
-If your router doensn't support sending the ip address (OpenWRT) you don't have to set myip field:
+### Test DDNS update
 
+```bash
+curl -u 'COR-P-TEST:<APIKEY>' \
+  'http://127.0.0.1:8080/nic/update?hostname=cor-p-test.ddns.example.com&myip=203.0.113.10'
 ```
-http://dyndns.example.com:8080/update?hostname=blog.dyndns.example.com
-or
-http://username:password@dyndns.example.com:8080/update?hostname=blog.dyndns.example.com
+
+Expected first response:
+
+```text
+good 203.0.113.10
 ```
 
-The handler will also listen on:
-* /nic/update
-* /v2/update
-* /v3/update
+Repeat with the same address:
+
+```text
+nochg 203.0.113.10
+```
+
+## CLI
+
+```bash
+hermesctl version
+hermesctl status
+```
+
+`hermesctl update`, backup/restore, doctor, release-channel management, UDM enrollment, and **agent-delivered/confirmed** automated key rotation are specified but intentionally deferred to subsequent milestones. The 26.08-01 API already includes a manual rotation primitive that creates a new key while placing the previous key in a grace window.
+
+## Repository layout
+
+```text
+cmd/                  Executables (server and CLI)
+internal/             Hermes application/core packages
+deployment/docker/    Container runtime foundation
+docs/                  Architecture, storyboards, legacy UI reference
+legacy/                Original upstream source retained for traceability
+scripts/               Build and smoke-test helpers
+tests/                 End-to-end test area
+```
+
+## Security notes
+
+- Administrative API authentication is required by default. For isolated development only, `HERMES_ALLOW_INSECURE_ADMIN=true` can disable that startup requirement.
+- Do not expose port 8080 directly to the public Internet in production. Put Hermes behind HTTPS (Caddy is the planned front end).
+- `HERMES_TRUST_PROXY_HEADERS` is disabled by default. Enable it only behind a trusted reverse proxy.
+- API keys are generated from 256 bits of random secret material and stored only as SHA-256 hashes.
+- 26.08-01 supports localhost `nsupdate`; TSIG configuration is represented in the runtime configuration and will be hardened in the next security milestone.
+
+## Upstream attribution
+
+HermesDDNS is a fork/derivative of:
+
+- `benjaminbear/docker-ddns-server` (Benjamin Bärthlein)
+- inspired upstream by `dprandzioch/docker-ddns`
+
+See [LICENSE](LICENSE). The legacy upstream source is retained under `legacy/original-source/` during the initial fork phase for comparison and migration purposes.
+
+## Roadmap
+
+1. **26.08-01** — Foundation and first end-to-end DDNS core.
+2. Hardened DNS/TSIG, key lifecycle and rotation primitives.
+3. REST API expansion and redesigned administration UI.
+4. Hermes UDM Agent: enrollment, heartbeat, managed DDNS configuration, key rotation.
+5. MCA-Secure-Downloads release/update/rollback integration.
