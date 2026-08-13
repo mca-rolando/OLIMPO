@@ -34,6 +34,7 @@ flowchart LR
     DDNS[DDNS Update Service]
     KR[Key Rotation Service]
     TM[Agent Telemetry]
+    NI[Network Identity]
     RM[Release Manager]
     Audit[Audit / Monitoring]
     DB[(SQLite)]
@@ -42,10 +43,12 @@ flowchart LR
     API --> DDNS
     API --> KR
     API --> TM
+    API --> NI
     API --> RM
     DM --> DB
     KR --> DB
     TM --> DB
+    NI --> DB
     DDNS --> Audit --> DB
   end
   DNS[(BIND9 Authoritative DNS)]
@@ -67,6 +70,9 @@ erDiagram
   DEVICE ||--o{ DEVICE_IDENTITY_CREDENTIAL : agent_authenticates_with
   DEVICE ||--o{ AGENT_ENROLLMENT : bootstraps_with
   DEVICE ||--o| AGENT_TELEMETRY_SNAPSHOT : reports_current_state
+  DEVICE ||--o| NETWORK_IDENTITY_SNAPSHOT : reports_network_identity
+  DEVICE ||--o{ NETWORK_WAN : has_wan_identity
+  DEVICE ||--o{ NETWORK_SEGMENT : has_network_context
   DEVICE ||--o{ UPDATE_LOG : generates
   HOST ||--o{ UPDATE_LOG : receives
   DDNS_CREDENTIAL ||--o{ UPDATE_LOG : used_by
@@ -134,6 +140,37 @@ erDiagram
     uint64 memory_available_bytes
     uint64 disk_total_bytes
     uint64 disk_available_bytes
+  }
+  NETWORK_IDENTITY_SNAPSHOT {
+    uint id PK
+    uint device_id FK UK
+    datetime reported_at
+    string server_observed_ip
+  }
+  NETWORK_WAN {
+    uint id PK
+    uint device_id FK
+    string interface_name
+    string role
+    bool default_route
+    string ipv4
+    string gateway_ipv4
+    string ipv6
+    string observed_public_ipv4
+    string address_scope
+    string nat_state
+    bool upstream_nat
+    bool double_nat
+    bool cgnat
+  }
+  NETWORK_SEGMENT {
+    uint id PK
+    uint device_id FK
+    string name
+    int vlan_id
+    string ipv4_cidr
+    string gateway_ipv4
+    string purpose
   }
   HOST {
     uint id PK
@@ -208,7 +245,28 @@ sequenceDiagram
   Hermes-->>Admin: online / offline / never_seen fleet state
 ```
 
-### 4.3 DDNS update
+### 4.3 UDM network identity snapshot
+
+Hermes keeps a deliberately small current network-identity view rather than a general network-monitoring inventory. The authenticated Agent reports WAN identity plus LAN/VLAN/subnet context. Hermes classifies each WAN as public, RFC1918 private, CGNAT, special, or unknown and derives a conservative NAT state (`direct`, `double_nat`, `cgnat`, `public_mismatch`, or `unknown`). VPN health and all deeper observability remain outside Hermes and belong to ARGUS.
+
+```mermaid
+sequenceDiagram
+  participant Agent as Hermes Agent
+  participant Hermes as HermesDDNS
+  participant DB as SQLite
+  participant Admin as Admin / ARGUS consumer
+  Agent->>Agent: Read WAN addresses + VLAN/subnet summary
+  Agent->>Agent: Probe public IPv4 per WAN when possible
+  Agent->>Hermes: POST /agent/network-context (Bearer hagent_...)
+  Hermes->>Hermes: Derive Device from authenticated identity
+  Hermes->>Hermes: Classify public/private/CGNAT/NAT state
+  Hermes->>DB: Atomically replace current network identity rows
+  Hermes-->>Agent: Current classified network context
+  Admin->>Hermes: GET /network-context
+  Hermes-->>Admin: Fleet identity snapshot (no VPN health)
+```
+
+### 4.4 DDNS update
 
 ```mermaid
 sequenceDiagram
@@ -232,7 +290,7 @@ sequenceDiagram
   end
 ```
 
-### 4.4 DDNS API-key rotation
+### 4.5 DDNS API-key rotation
 
 ```mermaid
 sequenceDiagram

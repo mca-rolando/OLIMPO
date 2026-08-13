@@ -19,6 +19,7 @@ import (
 	"github.com/mca-rolando/HermesDDNS/internal/ddns"
 	"github.com/mca-rolando/HermesDDNS/internal/enrollment"
 	"github.com/mca-rolando/HermesDDNS/internal/model"
+	"github.com/mca-rolando/HermesDDNS/internal/networkcontext"
 	"github.com/mca-rolando/HermesDDNS/internal/security"
 	"github.com/mca-rolando/HermesDDNS/internal/telemetry"
 	"github.com/tg123/go-htpasswd"
@@ -30,14 +31,15 @@ type validatorAdapter struct{ v *validator.Validate }
 func (v validatorAdapter) Validate(i interface{}) error { return v.v.Struct(i) }
 
 type Server struct {
-	Echo        *echo.Echo
-	DB          *gorm.DB
-	Config      config.Config
-	DDNS        *ddns.Service
-	Credentials *credential.Service
-	AgentAuth   *agentauth.Service
-	Enrollments *enrollment.Service
-	Telemetry   *telemetry.Service
+	Echo           *echo.Echo
+	DB             *gorm.DB
+	Config         config.Config
+	DDNS           *ddns.Service
+	Credentials    *credential.Service
+	AgentAuth      *agentauth.Service
+	Enrollments    *enrollment.Service
+	Telemetry      *telemetry.Service
+	NetworkContext *networkcontext.Service
 }
 
 func New(db *gorm.DB, cfg config.Config, ddnsService *ddns.Service) *Server {
@@ -50,14 +52,15 @@ func New(db *gorm.DB, cfg config.Config, ddnsService *ddns.Service) *Server {
 
 	agentAuth := &agentauth.Service{DB: db}
 	s := &Server{
-		Echo:        e,
-		DB:          db,
-		Config:      cfg,
-		DDNS:        ddnsService,
-		Credentials: &credential.Service{DB: db},
-		AgentAuth:   agentAuth,
-		Enrollments: &enrollment.Service{DB: db, AgentAuth: agentAuth},
-		Telemetry:   &telemetry.Service{DB: db},
+		Echo:           e,
+		DB:             db,
+		Config:         cfg,
+		DDNS:           ddnsService,
+		Credentials:    &credential.Service{DB: db},
+		AgentAuth:      agentAuth,
+		Enrollments:    &enrollment.Service{DB: db, AgentAuth: agentAuth},
+		Telemetry:      &telemetry.Service{DB: db},
+		NetworkContext: &networkcontext.Service{DB: db},
 	}
 	s.routes()
 	return s
@@ -100,12 +103,15 @@ func (s *Server) routes() {
 	admin.POST("/credential-rotations/reconcile", s.reconcileCredentialRotations)
 	admin.GET("/agent-status", s.listAgentStatuses)
 	admin.GET("/devices/:id/agent-status", s.getAgentStatus)
+	admin.GET("/network-context", s.listNetworkContexts)
+	admin.GET("/devices/:id/network-context", s.getNetworkContext)
 	admin.GET("/logs", s.listLogs)
 
 	agent := api.Group("/agent")
 	agent.Use(s.authenticateAgent)
 	agent.GET("/me", s.agentMe)
 	agent.POST("/heartbeat", s.agentHeartbeat)
+	agent.POST("/network-context", s.agentNetworkContext)
 	agent.POST("/enrollment/confirm", s.confirmAgentEnrollment)
 	agent.GET("/credential-rotations/current", s.agentCurrentRotation)
 	agent.POST("/credential-rotations/:rotation_id/stage", s.agentStageCandidate)

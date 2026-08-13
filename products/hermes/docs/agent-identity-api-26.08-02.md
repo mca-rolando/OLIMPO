@@ -122,3 +122,7 @@ The manual Agent credential endpoints documented above remain available as contr
 ## Heartbeat and operational telemetry now implemented
 
 The Agent identity channel now also authenticates `POST /api/v1/agent/heartbeat`. Agent online/offline state is derived from the Agent-specific heartbeat timestamp rather than generic Device activity, so a working DDNS client cannot mask a failed Hermes Agent. See `docs/agent-heartbeat-telemetry-26.08-02.md` for payload, status semantics, fleet API, validation, and storage design.
+
+## Network identity snapshot now implemented
+
+The Agent identity channel also authenticates `POST /api/v1/agent/network-context`. Hermes stores only current WAN identity and LAN/VLAN/subnet context, including public/private/CGNAT/Double-NAT classification; it deliberately does not collect VPN health or general network-monitoring data. See `docs/network-identity-26.08-02.md`.
