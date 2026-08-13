@@ -41,28 +41,38 @@ type Result struct {
 	Host    model.Host
 }
 
-func (s *Service) Authenticate(username, apiKey string) (AuthContext, error) {
+func (s *Service) Authenticate(username, apiKey, callerIP string) (AuthContext, error) {
 	var device model.Device
 	if err := s.DB.Where("name = ? AND status = ?", username, "active").First(&device).Error; err != nil {
 		return AuthContext{}, ErrBadAuth
 	}
 
 	var creds []model.DDNSCredential
-	now := time.Now()
-	if err := s.DB.Where("device_id = ? AND status IN ?", device.ID, []string{"active", "grace"}).Find(&creds).Error; err != nil {
+	now := time.Now().UTC()
+	if err := s.DB.Where("device_id = ? AND status IN ?", device.ID, []string{model.CredentialStatusActive, model.CredentialStatusGrace}).Find(&creds).Error; err != nil {
 		return AuthContext{}, ErrBadAuth
 	}
+
 	for _, cred := range creds {
-		if cred.ExpiresAt != nil && cred.ExpiresAt.Before(now) {
+		if cred.ExpiresAt != nil && !cred.ExpiresAt.After(now) {
 			continue
 		}
-		if cred.Status == "grace" && cred.GraceUntil != nil && cred.GraceUntil.Before(now) {
+		if cred.Status == model.CredentialStatusGrace && (cred.GraceUntil == nil || !cred.GraceUntil.After(now)) {
 			continue
 		}
-		if security.VerifyAPIKey(apiKey, cred.SecretHash) {
-			return AuthContext{Device: device, Credential: cred}, nil
+		if !security.VerifyAPIKey(apiKey, cred.SecretHash) {
+			continue
 		}
+
+		cred.LastUsedAt = &now
+		cred.LastUsedIP = callerIP
+		if err := s.DB.Model(&cred).Updates(map[string]any{"last_used_at": now, "last_used_ip": callerIP}).Error; err != nil {
+			return AuthContext{}, fmt.Errorf("update credential usage: %w", err)
+		}
+
+		return AuthContext{Device: device, Credential: cred}, nil
 	}
+
 	return AuthContext{}, ErrBadAuth
 }
 

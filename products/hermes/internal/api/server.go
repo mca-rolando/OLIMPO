@@ -94,12 +94,12 @@ func (s *Server) ddnsUpdate(c echo.Context) error {
 	if !ok {
 		return c.String(http.StatusUnauthorized, "badauth\n")
 	}
-	auth, err := s.DDNS.Authenticate(username, password)
+	callerIP := s.callerIP(c)
+	auth, err := s.DDNS.Authenticate(username, password, callerIP)
 	if err != nil {
 		return c.String(http.StatusUnauthorized, "badauth\n")
 	}
 
-	callerIP := s.callerIP(c)
 	result, err := s.DDNS.Update(auth, c.QueryParam("hostname"), c.QueryParam("myip"), callerIP, c.Request().UserAgent())
 	if err != nil {
 		switch {
