@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"strings"
 )
 
 const (
@@ -55,6 +56,33 @@ func generateKey(prefix string) (GeneratedKey, error) {
 		Plaintext: plain,
 		Hash:      HashAPIKey(plain),
 	}, nil
+}
+
+func ParseAgentKeyID(key string) (string, bool) {
+	return parseKeyID(key, agentKeyPrefix)
+}
+
+func parseKeyID(key, prefix string) (string, bool) {
+	if !strings.HasPrefix(key, prefix) {
+		return "", false
+	}
+	rest := strings.TrimPrefix(key, prefix)
+	parts := strings.SplitN(rest, ".", 2)
+	if len(parts) != 2 {
+		return "", false
+	}
+	id := strings.ToLower(parts[0])
+	if len(id) != 16 {
+		return "", false
+	}
+	if _, err := hex.DecodeString(id); err != nil {
+		return "", false
+	}
+	secret, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil || len(secret) != 32 {
+		return "", false
+	}
+	return id, true
 }
 
 func HashAPIKey(key string) string {

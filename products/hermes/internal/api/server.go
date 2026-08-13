@@ -12,6 +12,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/mca-rolando/HermesDDNS/internal/agentauth"
 	"github.com/mca-rolando/HermesDDNS/internal/buildinfo"
 	"github.com/mca-rolando/HermesDDNS/internal/config"
 	"github.com/mca-rolando/HermesDDNS/internal/credential"
@@ -32,6 +33,7 @@ type Server struct {
 	Config      config.Config
 	DDNS        *ddns.Service
 	Credentials *credential.Service
+	AgentAuth   *agentauth.Service
 }
 
 func New(db *gorm.DB, cfg config.Config, ddnsService *ddns.Service) *Server {
@@ -42,7 +44,14 @@ func New(db *gorm.DB, cfg config.Config, ddnsService *ddns.Service) *Server {
 	e.Use(middleware.RequestID())
 	e.Use(middleware.Logger())
 
-	s := &Server{Echo: e, DB: db, Config: cfg, DDNS: ddnsService, Credentials: &credential.Service{DB: db}}
+	s := &Server{
+		Echo:        e,
+		DB:          db,
+		Config:      cfg,
+		DDNS:        ddnsService,
+		Credentials: &credential.Service{DB: db},
+		AgentAuth:   &agentauth.Service{DB: db},
+	}
 	s.routes()
 	return s
 }
@@ -68,6 +77,9 @@ func (s *Server) routes() {
 	admin.GET("/devices", s.listDevices)
 	admin.POST("/devices", s.createDevice)
 	admin.GET("/devices/:id/credentials", s.listCredentials)
+	admin.GET("/devices/:id/agent-credentials", s.listAgentCredentials)
+	admin.POST("/devices/:id/agent-credentials", s.issueAgentCredential)
+	admin.POST("/devices/:id/agent-credentials/:credential_id/revoke", s.revokeAgentCredential)
 	admin.POST("/devices/:id/credentials/rotate", s.requestCredentialRotation)
 	admin.POST("/devices/:id/credential-rotations", s.requestCredentialRotation)
 	admin.GET("/devices/:id/credential-rotations", s.listCredentialRotations)
@@ -75,6 +87,13 @@ func (s *Server) routes() {
 	admin.POST("/devices/:id/credential-rotations/:rotation_id/rollback", s.rollbackCredentialRotation)
 	admin.POST("/credential-rotations/reconcile", s.reconcileCredentialRotations)
 	admin.GET("/logs", s.listLogs)
+
+	agent := api.Group("/agent")
+	agent.Use(s.authenticateAgent)
+	agent.GET("/me", s.agentMe)
+	agent.GET("/credential-rotations/current", s.agentCurrentRotation)
+	agent.POST("/credential-rotations/:rotation_id/stage", s.agentStageCandidate)
+	agent.POST("/credential-rotations/:rotation_id/start-validation", s.agentStartValidation)
 }
 
 func (s *Server) health(c echo.Context) error {

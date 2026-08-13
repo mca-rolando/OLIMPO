@@ -61,3 +61,31 @@ func TestGenerateAPIKeyCompatibility(t *testing.T) {
 		t.Fatalf("legacy GenerateAPIKey must generate DDNS keys with prefix %q", ddnsKeyPrefix)
 	}
 }
+
+func TestParseAgentKeyID(t *testing.T) {
+	key, err := GenerateAgentKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id, ok := ParseAgentKeyID(key.Plaintext)
+	if !ok {
+		t.Fatal("generated agent key must parse")
+	}
+	if id != key.ID {
+		t.Fatalf("parsed id: got %q want %q", id, key.ID)
+	}
+
+	invalid := []string{
+		"",
+		"hddns_" + key.ID + ".invalid",
+		"hagent_nothex.invalid",
+		"hagent_" + key.ID,
+		"hagent_" + key.ID + ".short",
+	}
+	for _, item := range invalid {
+		if _, ok := ParseAgentKeyID(item); ok {
+			t.Fatalf("invalid agent key parsed successfully: %q", item)
+		}
+	}
+}

@@ -299,3 +299,28 @@ func assertCredentialStatus(t *testing.T, db *gorm.DB, id uint, want string) {
 		t.Fatalf("credential %d status: got %s want %s", id, cred.Status, want)
 	}
 }
+
+func TestCurrentRotationReturnsOpenRotationOrNil(t *testing.T) {
+	clock := time.Date(2026, 8, 13, 15, 0, 0, 0, time.UTC)
+	svc, _, device, _ := newTestService(t, &clock)
+
+	current, err := svc.CurrentRotation(device.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current != nil {
+		t.Fatalf("expected no current rotation, got %#v", current)
+	}
+
+	rotation, err := svc.RequestRotation(device.ID, 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	current, err = svc.CurrentRotation(device.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current == nil || current.ID != rotation.ID {
+		t.Fatalf("unexpected current rotation: %#v", current)
+	}
+}

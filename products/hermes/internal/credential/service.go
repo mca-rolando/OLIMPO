@@ -87,6 +87,21 @@ func (s *Service) RequestRotation(deviceID uint, graceMinutes int) (model.DDNSCr
 	return rotation, nil
 }
 
+func (s *Service) CurrentRotation(deviceID uint) (*model.DDNSCredentialRotation, error) {
+	var rotation model.DDNSCredentialRotation
+	if err := s.DB.Where(
+		"device_id = ? AND status IN ?",
+		deviceID,
+		openRotationStatuses(),
+	).Order("created_at desc").First(&rotation).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &rotation, nil
+}
+
 func (s *Service) StageCandidate(rotationID, deviceID uint, keyID, secretHash string) (model.DDNSCredential, error) {
 	keyID = strings.ToLower(strings.TrimSpace(keyID))
 	secretHash = strings.ToLower(strings.TrimSpace(secretHash))
