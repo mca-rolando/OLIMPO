@@ -27,3 +27,31 @@ Unit coverage now includes:
 - automatic completion of an expired DDNS credential grace period.
 
 The next stabilization block is reserved for Docker/BIND end-to-end testing and a real 26.08-01 to 26.08-02 database upgrade test.
+
+# HermesDDNS 26.08-02 — Stabilization Block 2
+
+This block adds release-validation infrastructure rather than product features. Its purpose is to prove the 26.08-02 server behavior against a real containerized BIND instance and to prove that an existing 26.08-01 installation can be started by 26.08-02 without losing its operational data.
+
+## Live server / SQLite / BIND E2E
+
+`tests/e2e/server-e2e.sh` builds the current HermesDDNS container and runs it with isolated temporary Docker volumes for SQLite and BIND. The test publishes only a temporary localhost HTTP port; DNS port 53 remains inside the container so a workstation already using `systemd-resolved` can run the suite without a host port conflict.
+
+The test performs real `/nic/update` calls and validates BIND with `dig` inside the container. It covers initial `good`, repeated `nochg`, A-to-AAAA and AAAA-to-A transitions, and confirms that the opposite address family does not remain stale.
+
+The same test then exercises the complete server-side Agent path available in 26.08-02: one-time enrollment, permanent Agent identity, enrollment confirmation, heartbeat/current telemetry, network identity, multiple-default-route rejection, credential rotation request, Agent-generated candidate registration, validation, DDNS confirmation, and grace operation.
+
+## Real 26.08-01 to 26.08-02 upgrade
+
+`tests/e2e/upgrade-26.08-01-to-26.08-02.sh` uses the local Git ref `26.08-01` to build the historical release source. It creates a Device, DDNS credential, Host, BIND record, and audit history with that old container. The old container is then removed while its SQLite and BIND directories are preserved.
+
+The current 26.08-02 image starts against those same directories. The test verifies that the original Device and DDNS credential still work, the Host/DNS state remains valid, and audit history is preserved and extended. It then exercises the new Agent enrollment/identity, heartbeat telemetry, network identity, and credential rotation areas, proving that the new AutoMigrate schema is usable after the real upgrade.
+
+## Continuous integration
+
+GitHub Actions now runs the E2E suite after the normal Go test/vet/build job. The E2E checkout uses full Git history so the `26.08-01` release ref is available to the upgrade test.
+
+Run the entire stabilization suite locally with:
+
+```bash
+tests/e2e/run.sh
+```
