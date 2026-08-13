@@ -89,3 +89,38 @@ func TestParseAgentKeyID(t *testing.T) {
 		}
 	}
 }
+
+func TestGenerateAndVerifyEnrollmentKey(t *testing.T) {
+	key, err := GenerateEnrollmentKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if key.Plaintext == "" || key.Hash == "" || key.ID == "" {
+		t.Fatal("generated enrollment key fields must not be empty")
+	}
+	if !strings.HasPrefix(key.Plaintext, enrollmentKeyPrefix) {
+		t.Fatalf("enrollment key must start with %q", enrollmentKeyPrefix)
+	}
+	if !VerifyAPIKey(key.Plaintext, key.Hash) {
+		t.Fatal("generated enrollment key must verify")
+	}
+
+	id, ok := ParseEnrollmentKeyID(key.Plaintext)
+	if !ok || id != key.ID {
+		t.Fatalf("generated enrollment key must parse: id=%q ok=%v want=%q", id, ok, key.ID)
+	}
+
+	invalid := []string{
+		"",
+		"hagent_" + key.ID + ".invalid",
+		"henroll_nothex.invalid",
+		"henroll_" + key.ID,
+		"henroll_" + key.ID + ".short",
+	}
+	for _, item := range invalid {
+		if _, ok := ParseEnrollmentKeyID(item); ok {
+			t.Fatalf("invalid enrollment key parsed successfully: %q", item)
+		}
+	}
+}

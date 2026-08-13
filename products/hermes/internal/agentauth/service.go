@@ -32,49 +32,56 @@ func (s *Service) IssueCredential(deviceID uint) (model.DeviceIdentityCredential
 	var generated security.GeneratedKey
 
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
-		var device model.Device
-		if err := tx.Where("id = ? AND status = ?", deviceID, "active").First(&device).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return ErrDeviceNotFound
-			}
-			return err
-		}
-
-		var activeCount int64
-		if err := tx.Model(&model.DeviceIdentityCredential{}).
-			Where("device_id = ? AND status = ?", deviceID, model.CredentialStatusActive).
-			Count(&activeCount).Error; err != nil {
-			return err
-		}
-		if activeCount != 0 {
-			return ErrActiveCredentialExists
-		}
-
-		key, err := security.GenerateAgentKey()
-		if err != nil {
-			return err
-		}
-		generated = key
-
-		now := s.now()
-		credential = model.DeviceIdentityCredential{
-			DeviceID:     deviceID,
-			CredentialID: key.ID,
-			SecretHash:   key.Hash,
-			Status:       model.CredentialStatusActive,
-			ActivatedAt:  &now,
-		}
-		if err := tx.Create(&credential).Error; err != nil {
-			return fmt.Errorf("create agent credential: %w", err)
-		}
-
-		return nil
+		var err error
+		credential, generated, err = s.IssueCredentialTx(tx, deviceID)
+		return err
 	})
 	if err != nil {
 		return model.DeviceIdentityCredential{}, security.GeneratedKey{}, err
 	}
 
 	return credential, generated, nil
+}
+
+// IssueCredentialTx creates a Device identity credential using an existing
+// transaction. The caller owns transaction commit/rollback.
+func (s *Service) IssueCredentialTx(tx *gorm.DB, deviceID uint) (model.DeviceIdentityCredential, security.GeneratedKey, error) {
+	var device model.Device
+	if err := tx.Where("id = ? AND status = ?", deviceID, "active").First(&device).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return model.DeviceIdentityCredential{}, security.GeneratedKey{}, ErrDeviceNotFound
+		}
+		return model.DeviceIdentityCredential{}, security.GeneratedKey{}, err
+	}
+
+	var activeCount int64
+	if err := tx.Model(&model.DeviceIdentityCredential{}).
+		Where("device_id = ? AND status = ?", deviceID, model.CredentialStatusActive).
+		Count(&activeCount).Error; err != nil {
+		return model.DeviceIdentityCredential{}, security.GeneratedKey{}, err
+	}
+	if activeCount != 0 {
+		return model.DeviceIdentityCredential{}, security.GeneratedKey{}, ErrActiveCredentialExists
+	}
+
+	key, err := security.GenerateAgentKey()
+	if err != nil {
+		return model.DeviceIdentityCredential{}, security.GeneratedKey{}, err
+	}
+
+	now := s.now()
+	credential := model.DeviceIdentityCredential{
+		DeviceID:     deviceID,
+		CredentialID: key.ID,
+		SecretHash:   key.Hash,
+		Status:       model.CredentialStatusActive,
+		ActivatedAt:  &now,
+	}
+	if err := tx.Create(&credential).Error; err != nil {
+		return model.DeviceIdentityCredential{}, security.GeneratedKey{}, fmt.Errorf("create agent credential: %w", err)
+	}
+
+	return credential, key, nil
 }
 
 func (s *Service) Authenticate(apiKey, callerIP string) (Context, error) {
@@ -118,8 +125,16 @@ func (s *Service) Authenticate(apiKey, callerIP string) (Context, error) {
 }
 
 func (s *Service) RevokeCredential(deviceID, credentialID uint) error {
+	return s.DB.Transaction(func(tx *gorm.DB) error {
+		return s.RevokeCredentialTx(tx, deviceID, credentialID)
+	})
+}
+
+// RevokeCredentialTx revokes an active Device identity credential inside an
+// existing transaction. The caller owns transaction commit/rollback.
+func (s *Service) RevokeCredentialTx(tx *gorm.DB, deviceID, credentialID uint) error {
 	now := s.now()
-	updated := s.DB.Model(&model.DeviceIdentityCredential{}).
+	updated := tx.Model(&model.DeviceIdentityCredential{}).
 		Where(
 			"id = ? AND device_id = ? AND status = ?",
 			credentialID,

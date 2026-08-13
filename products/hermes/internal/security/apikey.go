@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	ddnsKeyPrefix  = "hddns_"
-	agentKeyPrefix = "hagent_"
+	ddnsKeyPrefix       = "hddns_"
+	agentKeyPrefix      = "hagent_"
+	enrollmentKeyPrefix = "henroll_"
 )
 
 type GeneratedKey struct {
@@ -27,6 +28,10 @@ func GenerateDDNSKey() (GeneratedKey, error) {
 
 func GenerateAgentKey() (GeneratedKey, error) {
 	return generateKey(agentKeyPrefix)
+}
+
+func GenerateEnrollmentKey() (GeneratedKey, error) {
+	return generateKey(enrollmentKeyPrefix)
 }
 
 // GenerateAPIKey is retained for compatibility with 26.08-01 code.
@@ -60,6 +65,10 @@ func generateKey(prefix string) (GeneratedKey, error) {
 
 func ParseAgentKeyID(key string) (string, bool) {
 	return parseKeyID(key, agentKeyPrefix)
+}
+
+func ParseEnrollmentKeyID(key string) (string, bool) {
+	return parseKeyID(key, enrollmentKeyPrefix)
 }
 
 func parseKeyID(key, prefix string) (string, bool) {

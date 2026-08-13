@@ -17,6 +17,7 @@ import (
 	"github.com/mca-rolando/HermesDDNS/internal/config"
 	"github.com/mca-rolando/HermesDDNS/internal/credential"
 	"github.com/mca-rolando/HermesDDNS/internal/ddns"
+	"github.com/mca-rolando/HermesDDNS/internal/enrollment"
 	"github.com/mca-rolando/HermesDDNS/internal/model"
 	"github.com/mca-rolando/HermesDDNS/internal/security"
 	"github.com/tg123/go-htpasswd"
@@ -34,6 +35,7 @@ type Server struct {
 	DDNS        *ddns.Service
 	Credentials *credential.Service
 	AgentAuth   *agentauth.Service
+	Enrollments *enrollment.Service
 }
 
 func New(db *gorm.DB, cfg config.Config, ddnsService *ddns.Service) *Server {
@@ -44,13 +46,15 @@ func New(db *gorm.DB, cfg config.Config, ddnsService *ddns.Service) *Server {
 	e.Use(middleware.RequestID())
 	e.Use(middleware.Logger())
 
+	agentAuth := &agentauth.Service{DB: db}
 	s := &Server{
 		Echo:        e,
 		DB:          db,
 		Config:      cfg,
 		DDNS:        ddnsService,
 		Credentials: &credential.Service{DB: db},
-		AgentAuth:   &agentauth.Service{DB: db},
+		AgentAuth:   agentAuth,
+		Enrollments: &enrollment.Service{DB: db, AgentAuth: agentAuth},
 	}
 	s.routes()
 	return s
@@ -67,6 +71,7 @@ func (s *Server) routes() {
 	api := s.Echo.Group(s.Config.APIPrefix)
 	api.GET("/health", s.health)
 	api.GET("/system/version", func(c echo.Context) error { return c.JSON(http.StatusOK, buildinfo.Current()) })
+	api.POST("/enroll", s.exchangeAgentEnrollment)
 
 	admin := api.Group("")
 	if s.Config.AdminLogin != "" {
@@ -80,6 +85,10 @@ func (s *Server) routes() {
 	admin.GET("/devices/:id/agent-credentials", s.listAgentCredentials)
 	admin.POST("/devices/:id/agent-credentials", s.issueAgentCredential)
 	admin.POST("/devices/:id/agent-credentials/:credential_id/revoke", s.revokeAgentCredential)
+	admin.POST("/devices/:id/enrollments", s.createAgentEnrollment)
+	admin.GET("/devices/:id/enrollments", s.listAgentEnrollments)
+	admin.GET("/devices/:id/enrollments/:enrollment_id", s.getAgentEnrollment)
+	admin.POST("/devices/:id/enrollments/:enrollment_id/revoke", s.revokeAgentEnrollment)
 	admin.POST("/devices/:id/credentials/rotate", s.requestCredentialRotation)
 	admin.POST("/devices/:id/credential-rotations", s.requestCredentialRotation)
 	admin.GET("/devices/:id/credential-rotations", s.listCredentialRotations)
@@ -91,6 +100,7 @@ func (s *Server) routes() {
 	agent := api.Group("/agent")
 	agent.Use(s.authenticateAgent)
 	agent.GET("/me", s.agentMe)
+	agent.POST("/enrollment/confirm", s.confirmAgentEnrollment)
 	agent.GET("/credential-rotations/current", s.agentCurrentRotation)
 	agent.POST("/credential-rotations/:rotation_id/stage", s.agentStageCandidate)
 	agent.POST("/credential-rotations/:rotation_id/start-validation", s.agentStartValidation)

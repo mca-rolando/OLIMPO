@@ -61,6 +61,8 @@ erDiagram
   DOMAIN ||--o{ HOST : contains
   DEVICE ||--o{ HOST : owns
   DEVICE ||--o{ DDNS_CREDENTIAL : authenticates_with
+  DEVICE ||--o{ DEVICE_IDENTITY_CREDENTIAL : agent_authenticates_with
+  DEVICE ||--o{ AGENT_ENROLLMENT : bootstraps_with
   DEVICE ||--o{ UPDATE_LOG : generates
   HOST ||--o{ UPDATE_LOG : receives
   DDNS_CREDENTIAL ||--o{ UPDATE_LOG : used_by
@@ -80,6 +82,31 @@ erDiagram
     string last_ip
     datetime last_seen_at
     string agent_version
+  }
+  DEVICE_IDENTITY_CREDENTIAL {
+    uint id PK
+    uint device_id FK
+    string credential_id UK
+    string secret_hash
+    string status
+    datetime activated_at
+    datetime expires_at
+    datetime revoked_at
+    datetime last_used_at
+    string last_used_ip
+  }
+  AGENT_ENROLLMENT {
+    uint id PK
+    uint device_id FK
+    string token_id UK
+    string secret_hash
+    string status
+    datetime expires_at
+    datetime issued_at
+    datetime completed_at
+    datetime revoked_at
+    string used_ip
+    uint agent_credential_id FK
   }
   HOST {
     uint id PK
@@ -123,12 +150,15 @@ sequenceDiagram
   participant MCA as MCA-Secure-Downloads
   participant Agent as Hermes Agent
   participant Server as HermesDDNS
-  Admin->>Server: Create enrollment token
+  Admin->>Server: Create short-lived one-time enrollment token
+  Server-->>Admin: henroll_... token (returned once)
   Admin->>Agent: Run official install command + token
   Agent->>MCA: Download/verify Agent
-  Agent->>Server: Register using one-time token
-  Server-->>Agent: Device identity + DDNS configuration
-  Agent->>Server: Confirm enrollment
+  Agent->>Server: Register using Bearer henroll_...
+  Server->>Server: Atomically consume token + issue hagent_ identity
+  Server-->>Agent: hagent_... once + Device + non-secret DDNS configuration
+  Agent->>Agent: Persist Device identity securely
+  Agent->>Server: Confirm enrollment using Bearer hagent_...
 ```
 
 ### 4.2 DDNS update

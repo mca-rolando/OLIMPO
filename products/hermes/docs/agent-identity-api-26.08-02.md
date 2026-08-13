@@ -113,11 +113,8 @@ sequenceDiagram
   Hermes->>Hermes: Candidate confirmed; previous = grace
 ```
 
-## Deferred enrollment work
+## One-time enrollment now implemented
 
-This block does **not** yet implement the one-time enrollment-token sequence from the architecture specification. The next Agent/enrollment milestone can replace manual Agent credential issuance with:
+The subsequent 26.08-02 enrollment block implements the architecture specification's short-lived one-time bootstrap sequence. New Agent installations should use `henroll_...` enrollment tokens instead of manually copying a permanent `hagent_...` key.
 
-1. Admin creates a short-lived one-time enrollment token.
-2. A newly installed UDM Agent registers using that token.
-3. Hermes issues the Device identity credential once over the enrollment response.
-4. The Agent persists it securely and uses the Bearer-authenticated API defined in this document.
+The manual Agent credential endpoints documented above remain available as controlled recovery/testing primitives. See `docs/agent-enrollment-26.08-02.md` for the enrollment state machine, security properties, API endpoints, replay protection, revocation behavior, and confirmation flow.
