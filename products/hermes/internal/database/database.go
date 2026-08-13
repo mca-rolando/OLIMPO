@@ -26,6 +26,7 @@ func Open(path string) (*gorm.DB, error) {
 		&model.Device{},
 		&model.DeviceIdentityCredential{},
 		&model.DDNSCredential{},
+		&model.DDNSCredentialRotation{},
 		&model.Host{},
 		&model.UpdateLog{},
 	); err != nil {
