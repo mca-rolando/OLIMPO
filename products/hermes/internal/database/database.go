@@ -24,6 +24,7 @@ func Open(path string) (*gorm.DB, error) {
 	if err := db.AutoMigrate(
 		&model.Domain{},
 		&model.Device{},
+		&model.DeviceIdentityCredential{},
 		&model.DDNSCredential{},
 		&model.Host{},
 		&model.UpdateLog{},

@@ -182,15 +182,17 @@ func (s *Server) createDevice(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 	dev := model.Device{Name: req.Name, DisplayName: req.DisplayName, Type: req.Type, Status: "active"}
-	key, err := security.GenerateAPIKey()
+	key, err := security.GenerateDDNSKey()
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
+	now := time.Now().UTC()
+
 	err = s.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&dev).Error; err != nil {
 			return err
 		}
-		cred := model.DDNSCredential{DeviceID: dev.ID, KeyID: key.ID, SecretHash: key.Hash, Status: "active", ActivatedAt: time.Now().UTC()}
+		cred := model.DDNSCredential{DeviceID: dev.ID, KeyID: key.ID, SecretHash: key.Hash, Status: model.CredentialStatusActive, ActivatedAt: &now}
 		return tx.Create(&cred).Error
 	})
 	if err != nil {
@@ -243,7 +245,7 @@ func (s *Server) rotateCredential(c echo.Context) error {
 		}
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
-	key, err := security.GenerateAPIKey()
+	key, err := security.GenerateDDNSKey()
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
@@ -251,10 +253,10 @@ func (s *Server) rotateCredential(c echo.Context) error {
 	graceUntil := now.Add(time.Duration(req.GraceMinutes) * time.Minute)
 	var newCred model.DDNSCredential
 	err = s.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&model.DDNSCredential{}).Where("device_id = ? AND status = ?", dev.ID, "active").Updates(map[string]any{"status": "grace", "grace_until": graceUntil}).Error; err != nil {
+		if err := tx.Model(&model.DDNSCredential{}).Where("device_id = ? AND status = ?", dev.ID, model.CredentialStatusActive).Updates(map[string]any{"status": model.CredentialStatusGrace, "grace_until": graceUntil}).Error; err != nil {
 			return err
 		}
-		newCred = model.DDNSCredential{DeviceID: dev.ID, KeyID: key.ID, SecretHash: key.Hash, Status: "active", ActivatedAt: now}
+		newCred = model.DDNSCredential{DeviceID: dev.ID, KeyID: key.ID, SecretHash: key.Hash, Status: model.CredentialStatusActive, ActivatedAt: &now}
 		return tx.Create(&newCred).Error
 	})
 	if err != nil {
@@ -265,7 +267,7 @@ func (s *Server) rotateCredential(c echo.Context) error {
 		"key_id":      key.ID,
 		"api_key":     key.Plaintext,
 		"grace_until": graceUntil,
-		"status":      "active",
+		"status":      model.CredentialStatusActive,
 		"warning":     "New key is returned once. Existing active key(s) remain valid only until grace_until. Agent delivery/confirmation is a later milestone.",
 	})
 }
