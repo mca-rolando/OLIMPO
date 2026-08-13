@@ -4,6 +4,8 @@ HermesDDNS is a centrally managed, self-hosted Dynamic DNS platform designed for
 
 > Current release: **26.08-01** — Foundation / Core Milestone.
 
+> Development branch **26.08-02** currently includes hardened DDNS credential lifecycle, permanent Agent identity, one-time Agent enrollment/bootstrap, and Agent heartbeat/current operational telemetry APIs. The published release remains 26.08-01 until the 26.08-02 release is formally closed.
+
 ## What 26.08-01 implements
 
 - HermesDDNS branding and repository/module ownership.
@@ -77,7 +79,7 @@ hermesctl version
 hermesctl status
 ```
 
-`hermesctl update`, backup/restore, doctor, release-channel management, UDM enrollment, and **agent-delivered/confirmed** automated key rotation are specified but intentionally deferred to subsequent milestones. The 26.08-01 API already includes a manual rotation primitive that creates a new key while placing the previous key in a grace window.
+`hermesctl update`, backup/restore, doctor, and release-channel management remain subsequent milestones. The 26.08-02 development branch now implements secure UDM Agent enrollment, Agent identity, heartbeat/current telemetry, and agent-delivered/confirmed DDNS credential rotation APIs; the actual persistent UDM Agent executable/service remains a subsequent milestone.
 
 ## Repository layout
 

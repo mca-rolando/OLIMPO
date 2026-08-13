@@ -20,6 +20,7 @@ import (
 	"github.com/mca-rolando/HermesDDNS/internal/enrollment"
 	"github.com/mca-rolando/HermesDDNS/internal/model"
 	"github.com/mca-rolando/HermesDDNS/internal/security"
+	"github.com/mca-rolando/HermesDDNS/internal/telemetry"
 	"github.com/tg123/go-htpasswd"
 	"gorm.io/gorm"
 )
@@ -36,6 +37,7 @@ type Server struct {
 	Credentials *credential.Service
 	AgentAuth   *agentauth.Service
 	Enrollments *enrollment.Service
+	Telemetry   *telemetry.Service
 }
 
 func New(db *gorm.DB, cfg config.Config, ddnsService *ddns.Service) *Server {
@@ -55,6 +57,7 @@ func New(db *gorm.DB, cfg config.Config, ddnsService *ddns.Service) *Server {
 		Credentials: &credential.Service{DB: db},
 		AgentAuth:   agentAuth,
 		Enrollments: &enrollment.Service{DB: db, AgentAuth: agentAuth},
+		Telemetry:   &telemetry.Service{DB: db},
 	}
 	s.routes()
 	return s
@@ -95,11 +98,14 @@ func (s *Server) routes() {
 	admin.GET("/devices/:id/credential-rotations/:rotation_id", s.getCredentialRotation)
 	admin.POST("/devices/:id/credential-rotations/:rotation_id/rollback", s.rollbackCredentialRotation)
 	admin.POST("/credential-rotations/reconcile", s.reconcileCredentialRotations)
+	admin.GET("/agent-status", s.listAgentStatuses)
+	admin.GET("/devices/:id/agent-status", s.getAgentStatus)
 	admin.GET("/logs", s.listLogs)
 
 	agent := api.Group("/agent")
 	agent.Use(s.authenticateAgent)
 	agent.GET("/me", s.agentMe)
+	agent.POST("/heartbeat", s.agentHeartbeat)
 	agent.POST("/enrollment/confirm", s.confirmAgentEnrollment)
 	agent.GET("/credential-rotations/current", s.agentCurrentRotation)
 	agent.POST("/credential-rotations/:rotation_id/stage", s.agentStageCandidate)

@@ -33,6 +33,7 @@ flowchart LR
     DM[Device Manager]
     DDNS[DDNS Update Service]
     KR[Key Rotation Service]
+    TM[Agent Telemetry]
     RM[Release Manager]
     Audit[Audit / Monitoring]
     DB[(SQLite)]
@@ -40,9 +41,11 @@ flowchart LR
     API --> DM
     API --> DDNS
     API --> KR
+    API --> TM
     API --> RM
     DM --> DB
     KR --> DB
+    TM --> DB
     DDNS --> Audit --> DB
   end
   DNS[(BIND9 Authoritative DNS)]
@@ -63,6 +66,7 @@ erDiagram
   DEVICE ||--o{ DDNS_CREDENTIAL : authenticates_with
   DEVICE ||--o{ DEVICE_IDENTITY_CREDENTIAL : agent_authenticates_with
   DEVICE ||--o{ AGENT_ENROLLMENT : bootstraps_with
+  DEVICE ||--o| AGENT_TELEMETRY_SNAPSHOT : reports_current_state
   DEVICE ||--o{ UPDATE_LOG : generates
   HOST ||--o{ UPDATE_LOG : receives
   DDNS_CREDENTIAL ||--o{ UPDATE_LOG : used_by
@@ -107,6 +111,29 @@ erDiagram
     datetime revoked_at
     string used_ip
     uint agent_credential_id FK
+  }
+  AGENT_TELEMETRY_SNAPSHOT {
+    uint id PK
+    uint device_id FK UK
+    datetime last_heartbeat_at
+    string last_ip
+    string agent_version
+    string system_hostname
+    string platform
+    string architecture
+    string os_version
+    string kernel_version
+    string firmware_version
+    string boot_id
+    uint64 uptime_seconds
+    int cpu_count
+    float load_1
+    float load_5
+    float load_15
+    uint64 memory_total_bytes
+    uint64 memory_available_bytes
+    uint64 disk_total_bytes
+    uint64 disk_available_bytes
   }
   HOST {
     uint id PK
@@ -161,7 +188,27 @@ sequenceDiagram
   Agent->>Server: Confirm enrollment using Bearer hagent_...
 ```
 
-### 4.2 DDNS update
+### 4.2 Agent heartbeat and current telemetry
+
+The Hermes Agent sends an authenticated heartbeat every 60 seconds by default. `AgentTelemetrySnapshot.last_heartbeat_at` is the authoritative Agent-presence signal; `Device.last_seen_at` remains a broader activity field that can also be refreshed by DDNS traffic. A Device is considered Agent-online while its last heartbeat is no more than 180 seconds old. Hermes stores one current telemetry snapshot per Device rather than an unbounded heartbeat history.
+
+```mermaid
+sequenceDiagram
+  participant Agent as Hermes Agent
+  participant Hermes as HermesDDNS
+  participant DB as SQLite
+  participant Admin as Admin / Dashboard
+  Agent->>Hermes: POST /agent/heartbeat (Bearer hagent_...)
+  Hermes->>Hermes: Derive Device from authenticated identity
+  Hermes->>DB: Upsert current AgentTelemetrySnapshot
+  Hermes->>DB: Refresh generic Device last_seen/last_ip
+  Hermes-->>Agent: ok + next heartbeat interval
+  Admin->>Hermes: GET /agent-status
+  Hermes->>DB: Load Devices + current snapshots
+  Hermes-->>Admin: online / offline / never_seen fleet state
+```
+
+### 4.3 DDNS update
 
 ```mermaid
 sequenceDiagram
@@ -185,7 +232,7 @@ sequenceDiagram
   end
 ```
 
-### 4.3 DDNS API-key rotation
+### 4.4 DDNS API-key rotation
 
 ```mermaid
 sequenceDiagram
@@ -193,15 +240,20 @@ sequenceDiagram
   participant Hermes as HermesDDNS
   participant Agent as Hermes Agent
   participant DDNS as DDNS Endpoint
-  Admin->>Hermes: Rotate API Key
-  Hermes->>Hermes: Generate new key; old key enters grace
-  Hermes-->>Agent: Push new DDNS key over Device identity channel
-  Agent->>Agent: Update local DDNS client configuration
-  Agent->>DDNS: Test update with new key
+  Admin->>Hermes: Request DDNS credential rotation
+  Hermes->>Hermes: Rotation = requested; old key remains active
+  Agent->>Hermes: GET current rotation
+  Agent->>Agent: Generate new hddns_ key locally
+  Agent->>Hermes: Stage Key ID + SHA-256 hash only
+  Hermes->>Hermes: Candidate = pending; rotation = staged
+  Agent->>Agent: Prepare candidate in inadyn
+  Agent->>Hermes: Start validation
+  Hermes->>Hermes: Candidate = active; old key remains active
+  Agent->>DDNS: Real /nic/update using candidate
   DDNS-->>Agent: good/nochg
-  Agent->>Hermes: Rotation confirmed
-  Hermes->>Hermes: Activate new key; revoke old key
-  Note over Hermes,Agent: If confirmation fails, keep/restore old key and flag rotation for operator action.
+  Hermes->>Hermes: Confirm candidate; old key = grace
+  Hermes->>Hermes: Reconcile grace expiry; old key = revoked
+  Note over Hermes,Agent: Candidate plaintext is generated and retained by the Agent, never by Hermes during rotation.
 ```
 
 ## 5. DDNS compatibility contract

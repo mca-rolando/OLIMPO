@@ -26,6 +26,7 @@ func Open(path string) (*gorm.DB, error) {
 		&model.Device{},
 		&model.DeviceIdentityCredential{},
 		&model.AgentEnrollment{},
+		&model.AgentTelemetrySnapshot{},
 		&model.DDNSCredential{},
 		&model.DDNSCredentialRotation{},
 		&model.Host{},

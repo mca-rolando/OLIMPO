@@ -118,3 +118,7 @@ sequenceDiagram
 The subsequent 26.08-02 enrollment block implements the architecture specification's short-lived one-time bootstrap sequence. New Agent installations should use `henroll_...` enrollment tokens instead of manually copying a permanent `hagent_...` key.
 
 The manual Agent credential endpoints documented above remain available as controlled recovery/testing primitives. See `docs/agent-enrollment-26.08-02.md` for the enrollment state machine, security properties, API endpoints, replay protection, revocation behavior, and confirmation flow.
+
+## Heartbeat and operational telemetry now implemented
+
+The Agent identity channel now also authenticates `POST /api/v1/agent/heartbeat`. Agent online/offline state is derived from the Agent-specific heartbeat timestamp rather than generic Device activity, so a working DDNS client cannot mask a failed Hermes Agent. See `docs/agent-heartbeat-telemetry-26.08-02.md` for payload, status semantics, fleet API, validation, and storage design.
