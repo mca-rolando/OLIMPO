@@ -14,6 +14,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/mca-rolando/HermesDDNS/internal/buildinfo"
 	"github.com/mca-rolando/HermesDDNS/internal/config"
+	"github.com/mca-rolando/HermesDDNS/internal/credential"
 	"github.com/mca-rolando/HermesDDNS/internal/ddns"
 	"github.com/mca-rolando/HermesDDNS/internal/model"
 	"github.com/mca-rolando/HermesDDNS/internal/security"
@@ -26,10 +27,11 @@ type validatorAdapter struct{ v *validator.Validate }
 func (v validatorAdapter) Validate(i interface{}) error { return v.v.Struct(i) }
 
 type Server struct {
-	Echo   *echo.Echo
-	DB     *gorm.DB
-	Config config.Config
-	DDNS   *ddns.Service
+	Echo        *echo.Echo
+	DB          *gorm.DB
+	Config      config.Config
+	DDNS        *ddns.Service
+	Credentials *credential.Service
 }
 
 func New(db *gorm.DB, cfg config.Config, ddnsService *ddns.Service) *Server {
@@ -40,7 +42,7 @@ func New(db *gorm.DB, cfg config.Config, ddnsService *ddns.Service) *Server {
 	e.Use(middleware.RequestID())
 	e.Use(middleware.Logger())
 
-	s := &Server{Echo: e, DB: db, Config: cfg, DDNS: ddnsService}
+	s := &Server{Echo: e, DB: db, Config: cfg, DDNS: ddnsService, Credentials: &credential.Service{DB: db}}
 	s.routes()
 	return s
 }
@@ -66,7 +68,12 @@ func (s *Server) routes() {
 	admin.GET("/devices", s.listDevices)
 	admin.POST("/devices", s.createDevice)
 	admin.GET("/devices/:id/credentials", s.listCredentials)
-	admin.POST("/devices/:id/credentials/rotate", s.rotateCredential)
+	admin.POST("/devices/:id/credentials/rotate", s.requestCredentialRotation)
+	admin.POST("/devices/:id/credential-rotations", s.requestCredentialRotation)
+	admin.GET("/devices/:id/credential-rotations", s.listCredentialRotations)
+	admin.GET("/devices/:id/credential-rotations/:rotation_id", s.getCredentialRotation)
+	admin.POST("/devices/:id/credential-rotations/:rotation_id/rollback", s.rollbackCredentialRotation)
+	admin.POST("/credential-rotations/reconcile", s.reconcileCredentialRotations)
 	admin.GET("/logs", s.listLogs)
 }
 
@@ -111,6 +118,11 @@ func (s *Server) ddnsUpdate(c echo.Context) error {
 			return c.String(http.StatusBadRequest, "badagent\n")
 		default:
 			return c.String(http.StatusServiceUnavailable, "dnserr\n")
+		}
+	}
+	if s.Credentials != nil {
+		if _, err := s.Credentials.ConfirmCredentialUse(auth.Credential.ID); err != nil {
+			s.Echo.Logger.Errorf("confirm DDNS credential use: %v", err)
 		}
 	}
 	return c.String(http.StatusOK, fmt.Sprintf("%s %s\n", result.Code, result.IP))
@@ -217,59 +229,6 @@ func (s *Server) listCredentials(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
 	return c.JSON(http.StatusOK, creds)
-}
-
-type rotateCredentialRequest struct {
-	GraceMinutes int `json:"grace_minutes" validate:"omitempty,min=1,max=1440"`
-}
-
-func (s *Server) rotateCredential(c echo.Context) error {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid device id"})
-	}
-	var req rotateCredentialRequest
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
-	}
-	if err := c.Validate(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
-	}
-	if req.GraceMinutes == 0 {
-		req.GraceMinutes = 30
-	}
-	var dev model.Device
-	if err := s.DB.First(&dev, uint(id)).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return c.JSON(http.StatusNotFound, map[string]string{"error": "device not found"})
-		}
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
-	}
-	key, err := security.GenerateDDNSKey()
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
-	}
-	now := time.Now().UTC()
-	graceUntil := now.Add(time.Duration(req.GraceMinutes) * time.Minute)
-	var newCred model.DDNSCredential
-	err = s.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&model.DDNSCredential{}).Where("device_id = ? AND status = ?", dev.ID, model.CredentialStatusActive).Updates(map[string]any{"status": model.CredentialStatusGrace, "grace_until": graceUntil}).Error; err != nil {
-			return err
-		}
-		newCred = model.DDNSCredential{DeviceID: dev.ID, KeyID: key.ID, SecretHash: key.Hash, Status: model.CredentialStatusActive, ActivatedAt: &now}
-		return tx.Create(&newCred).Error
-	})
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
-	}
-	return c.JSON(http.StatusCreated, map[string]any{
-		"device_id":   dev.ID,
-		"key_id":      key.ID,
-		"api_key":     key.Plaintext,
-		"grace_until": graceUntil,
-		"status":      model.CredentialStatusActive,
-		"warning":     "New key is returned once. Existing active key(s) remain valid only until grace_until. Agent delivery/confirmation is a later milestone.",
-	})
 }
 
 func (s *Server) listLogs(c echo.Context) error {
