@@ -2,25 +2,23 @@
 
 HermesDDNS is a centrally managed, self-hosted Dynamic DNS platform designed for UniFi Dream Machine (UDM) fleets. It is derived from Benjamin Bärthlein's `docker-ddns-server` and retains the original MIT attribution while introducing a new device-oriented architecture, hashed DDNS credentials, automatic hostname provisioning, audit logging, release metadata, and a path toward managed UDM agents and MCA-Secure-Downloads integration.
 
-> Current release: **26.08-01** — Foundation / Core Milestone.
+> Current release: **26.08-02** — Managed Agent Foundation / Credential Lifecycle Milestone.
 
-> Development branch **26.08-02** currently includes hardened DDNS credential lifecycle, permanent Agent identity, one-time Agent enrollment/bootstrap, Agent heartbeat/current operational telemetry APIs, and current UDM network identity snapshots with WAN public/private/CGNAT/Double-NAT classification plus VLAN/subnet context. The published release remains 26.08-01 until the 26.08-02 release is formally closed.
+## What 26.08-02 implements
 
-## What 26.08-01 implements
+- Everything delivered in 26.08-01: HermesDDNS branding, `hermesddns`/`hermesctl`, SQLite device/host model, hashed DDNS keys, DynDNS-compatible update endpoints, automatic host provisioning, ownership enforcement, BIND9 `nsupdate`, and the bootstrap administration API.
+- Hardened DDNS credential authentication with lifecycle states: `pending`, `active`, `grace`, `revoked`, and `expired`.
+- Safe DDNS credential rotation state machine with request, stage, validation, grace, completion, rollback, and automatic grace reconciliation.
+- Separate credential namespaces for DDNS (`hddns_`), permanent Agent identity (`hagent_`), and one-time enrollment (`henroll_`).
+- Secure one-time UDM Agent enrollment/bootstrap with replay protection, confirmation, expiration, and revocation.
+- Agent-authenticated lifecycle APIs that never trust a caller-supplied Device ID to establish Agent identity.
+- Agent heartbeat and current operational telemetry snapshots with fleet status APIs.
+- Current UDM Network Identity snapshots covering WAN identity, public/private/CGNAT classification, upstream/double-NAT context, and LAN VLAN/subnet summaries.
+- Validation that a network snapshot has at most one default-route WAN.
+- Stale A/AAAA protection: live DNS updates remove both address record types before publishing the current address family.
+- End-to-end release validation against live SQLite + BIND, including DDNS `good`/`nochg`, Agent lifecycle, Network Identity, credential rotation, and a real persistent-data upgrade from 26.08-01 to 26.08-02.
 
-- HermesDDNS branding and repository/module ownership.
-- `hermesddns` server and initial `hermesctl` CLI.
-- Version/build metadata and `/health` endpoint.
-- New SQLite data model: Domain, Device, Host, DDNSCredential, UpdateLog.
-- High-entropy DDNS API keys stored only as SHA-256 hashes.
-- DynDNS-compatible endpoints: `/update`, `/nic/update`, `/v2/update`, `/v3/update`.
-- Automatic host creation on the first valid device update.
-- Device-to-host ownership enforcement.
-- `good <ip>` and `nochg <ip>` responses.
-- BIND9 updates through `nsupdate`.
-- Minimal administrative REST API for bootstrap/testing, including manual credential rotation primitives.
-- Docker Compose deployment foundation.
-- Architecture & Functional Specification v1.0 source documentation and UI storyboards.
+The **persistent Hermes UDM Agent executable/service is not part of 26.08-02**. This release provides the server-side identity, enrollment, telemetry, network-context, and credential-lifecycle foundation that the Agent will consume.
 
 ## Quick start (development)
 
@@ -79,7 +77,7 @@ hermesctl version
 hermesctl status
 ```
 
-`hermesctl update`, backup/restore, doctor, and release-channel management remain subsequent milestones. The 26.08-02 development branch now implements secure UDM Agent enrollment, Agent identity, heartbeat/current telemetry, network identity snapshots, and agent-delivered/confirmed DDNS credential rotation APIs; the actual persistent UDM Agent executable/service remains a subsequent milestone.
+`hermesctl update`, backup/restore, doctor, and release-channel management remain subsequent milestones. Release 26.08-02 provides the server-side primitives for secure UDM Agent enrollment, identity, heartbeat/current telemetry, network identity snapshots, and agent-delivered/confirmed DDNS credential rotation; the persistent UDM Agent executable/service remains a subsequent milestone.
 
 ## Repository layout
 
@@ -99,7 +97,7 @@ tests/                 End-to-end test area
 - Do not expose port 8080 directly to the public Internet in production. Put Hermes behind HTTPS (Caddy is the planned front end).
 - `HERMES_TRUST_PROXY_HEADERS` is disabled by default. Enable it only behind a trusted reverse proxy.
 - API keys are generated from 256 bits of random secret material and stored only as SHA-256 hashes.
-- 26.08-01 supports localhost `nsupdate`; TSIG configuration is represented in the runtime configuration and will be hardened in the next security milestone.
+- 26.08-02 continues to use localhost `nsupdate`; TSIG configuration is represented in the runtime configuration and remains scheduled for a later security-hardening milestone.
 
 ## Upstream attribution
 
@@ -113,7 +111,7 @@ See [LICENSE](LICENSE). The legacy upstream source is retained under `legacy/ori
 ## Roadmap
 
 1. **26.08-01** — Foundation and first end-to-end DDNS core.
-2. Hardened DNS/TSIG, key lifecycle and rotation primitives.
-3. REST API expansion and redesigned administration UI.
-4. Hermes UDM Agent: enrollment, heartbeat, managed DDNS configuration, key rotation.
-5. MCA-Secure-Downloads release/update/rollback integration.
+2. **26.08-02** — Server-side managed-Agent foundation: hardened credential lifecycle, Agent identity/enrollment, heartbeat/telemetry, Network Identity, DNS consistency fixes, and release E2E/upgrade validation.
+3. **Next milestone** — Persistent Hermes UDM Agent: installation/service lifecycle, local network collection, managed `inadyn` configuration, heartbeat delivery, and automatic DDNS credential rotation execution.
+4. Administration UI expansion, hardened DNS/TSIG operations, and fleet workflows.
+5. MCA-Secure-Downloads release/update/backup/rollback integration.

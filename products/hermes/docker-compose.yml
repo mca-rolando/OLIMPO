@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: deployment/docker/Dockerfile
       args:
-        VERSION: ${HERMES_VERSION:-26.08-01}
+        VERSION: ${HERMES_VERSION:-26.08-02}
         COMMIT: ${HERMES_COMMIT:-local}
         BUILD_TIME: ${HERMES_BUILD_TIME:-local}
     container_name: hermesddns

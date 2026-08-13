@@ -55,3 +55,11 @@ Run the entire stabilization suite locally with:
 ```bash
 tests/e2e/run.sh
 ```
+
+# HermesDDNS 26.08-02 — Release Closing Block
+
+The release-closing block freezes the 26.08-02 release metadata after both stabilization blocks passed. It does not add product behavior.
+
+The closing block updates the root `VERSION`, Docker Compose build default, example environment header, README release status/roadmap, and CHANGELOG so the repository consistently identifies 26.08-02 as the current release. Historical 26.08-01 references used by compatibility comments, architecture examples, import history, and the real upgrade E2E remain intentionally unchanged.
+
+Before tagging or publishing 26.08-02, the closing commit must again pass formatting/diff checks, Go tests, race detection, vet/build, and the full `tests/e2e/run.sh` release suite.
