@@ -1,6 +1,7 @@
 package credential
 
 import (
+	"context"
 	"errors"
 	"path/filepath"
 	"testing"
@@ -322,5 +323,69 @@ func TestCurrentRotationReturnsOpenRotationOrNil(t *testing.T) {
 	}
 	if current == nil || current.ID != rotation.ID {
 		t.Fatalf("unexpected current rotation: %#v", current)
+	}
+}
+
+func TestRunReconcilerCompletesExpiredGraceAutomatically(t *testing.T) {
+	clock := time.Date(2026, 8, 13, 15, 0, 0, 0, time.UTC)
+	svc, db, device, old := newTestService(t, &clock)
+
+	rotation, err := svc.RequestRotation(device.ID, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := security.GenerateDDNSKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidate, err := svc.StageCandidate(rotation.ID, device.ID, key.ID, key.Hash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.StartValidation(rotation.ID, device.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.ConfirmCredentialUse(candidate.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	clock = clock.Add(2 * time.Minute)
+
+	type reconcileResult struct {
+		completed int
+		err       error
+	}
+	results := make(chan reconcileResult, 1)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go svc.RunReconciler(ctx, 10*time.Millisecond, func(completed int, err error) {
+		select {
+		case results <- reconcileResult{completed: completed, err: err}:
+		default:
+		}
+	})
+
+	select {
+	case result := <-results:
+		if result.err != nil {
+			t.Fatal(result.err)
+		}
+		if result.completed != 1 {
+			t.Fatalf("expected one automatically completed rotation, got %d", result.completed)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for automatic grace reconciliation")
+	}
+	cancel()
+
+	assertCredentialStatus(t, db, old.ID, model.CredentialStatusRevoked)
+	assertCredentialStatus(t, db, candidate.ID, model.CredentialStatusActive)
+
+	var stored model.DDNSCredentialRotation
+	if err := db.First(&stored, rotation.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if stored.Status != model.RotationStatusCompleted || stored.CompletedAt == nil {
+		t.Fatalf("rotation should be automatically completed: %#v", stored)
 	}
 }

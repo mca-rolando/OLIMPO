@@ -174,3 +174,24 @@ func TestAgentNetworkContextRejectsInvalidTopologyData(t *testing.T) {
 		t.Fatalf("invalid network context expected %d, got %d: %s", http.StatusBadRequest, rec.Code, rec.Body.String())
 	}
 }
+
+func TestAgentNetworkContextRejectsMultipleDefaultRoutes(t *testing.T) {
+	_, server, device, _ := newCredentialAPITestServer(t)
+	_, agentKey, err := server.AgentAuth.IssueCredential(device.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body := bytes.NewBufferString(`{"wans":[{"interface_name":"wan0","role":"primary","default_route":true},{"interface_name":"wan1","role":"secondary","default_route":true}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/agent/network-context", body)
+	req.Header.Set("Authorization", "Bearer "+agentKey.Plaintext)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	server.Echo.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("multiple default routes expected %d, got %d: %s", http.StatusBadRequest, rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), networkcontext.ErrMultipleDefaultRoutes.Error()) {
+		t.Fatalf("unexpected multiple-default-route response: %s", rec.Body.String())
+	}
+}

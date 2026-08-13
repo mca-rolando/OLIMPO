@@ -13,17 +13,18 @@ import (
 )
 
 var (
-	ErrDeviceNotFound     = errors.New("device not found")
-	ErrNoWAN              = errors.New("at least one WAN interface is required")
-	ErrInvalidInterface   = errors.New("invalid WAN interface")
-	ErrDuplicateInterface = errors.New("duplicate WAN interface")
-	ErrInvalidWANRole     = errors.New("invalid WAN role")
-	ErrInvalidIPAddress   = errors.New("invalid IP address")
-	ErrInvalidPublicIPv4  = errors.New("observed public IPv4 must be a public IPv4 address")
-	ErrInvalidNetworkName = errors.New("invalid network name")
-	ErrInvalidVLAN        = errors.New("invalid VLAN ID")
-	ErrInvalidCIDR        = errors.New("invalid IPv4 CIDR")
-	ErrInvalidGateway     = errors.New("gateway IPv4 is outside the network CIDR")
+	ErrDeviceNotFound        = errors.New("device not found")
+	ErrNoWAN                 = errors.New("at least one WAN interface is required")
+	ErrInvalidInterface      = errors.New("invalid WAN interface")
+	ErrDuplicateInterface    = errors.New("duplicate WAN interface")
+	ErrMultipleDefaultRoutes = errors.New("multiple default WAN routes")
+	ErrInvalidWANRole        = errors.New("invalid WAN role")
+	ErrInvalidIPAddress      = errors.New("invalid IP address")
+	ErrInvalidPublicIPv4     = errors.New("observed public IPv4 must be a public IPv4 address")
+	ErrInvalidNetworkName    = errors.New("invalid network name")
+	ErrInvalidVLAN           = errors.New("invalid VLAN ID")
+	ErrInvalidCIDR           = errors.New("invalid IPv4 CIDR")
+	ErrInvalidGateway        = errors.New("gateway IPv4 is outside the network CIDR")
 )
 
 const (
@@ -317,6 +318,7 @@ func validateInput(input ReportInput) error {
 		return ErrNoWAN
 	}
 	seenInterfaces := make(map[string]struct{}, len(input.WANs))
+	defaultRoutes := 0
 	for _, wan := range input.WANs {
 		name := strings.TrimSpace(wan.InterfaceName)
 		if name == "" {
@@ -327,6 +329,12 @@ func validateInput(input ReportInput) error {
 			return ErrDuplicateInterface
 		}
 		seenInterfaces[key] = struct{}{}
+		if wan.DefaultRoute {
+			defaultRoutes++
+			if defaultRoutes > 1 {
+				return ErrMultipleDefaultRoutes
+			}
+		}
 		if role := normalizedRole(wan.Role); role != WANRolePrimary && role != WANRoleSecondary && role != WANRoleOther {
 			return ErrInvalidWANRole
 		}

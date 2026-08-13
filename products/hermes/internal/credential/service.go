@@ -1,6 +1,7 @@
 package credential
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -24,8 +25,9 @@ var (
 )
 
 const (
-	MinGraceMinutes = 1
-	MaxGraceMinutes = 1440
+	MinGraceMinutes          = 1
+	MaxGraceMinutes          = 1440
+	DefaultReconcileInterval = time.Minute
 )
 
 type Service struct {
@@ -278,6 +280,34 @@ func (s *Service) ConfirmCredentialUse(credentialID uint) (bool, error) {
 	return advanced, err
 }
 
+// RunReconciler periodically completes credential rotations whose grace
+// period has expired. It performs one reconciliation immediately at startup,
+// then repeats until ctx is cancelled.
+func (s *Service) RunReconciler(ctx context.Context, interval time.Duration, report func(completed int, err error)) {
+	if interval <= 0 {
+		interval = DefaultReconcileInterval
+	}
+
+	reconcile := func() {
+		completed, err := s.ReconcileExpiredGrace()
+		if report != nil && (err != nil || completed > 0) {
+			report(completed, err)
+		}
+	}
+
+	reconcile()
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			reconcile()
+		}
+	}
+}
+
 func (s *Service) ReconcileExpiredGrace() (int, error) {
 	now := s.now()
 	var rotations []model.DDNSCredentialRotation
@@ -291,6 +321,7 @@ func (s *Service) ReconcileExpiredGrace() (int, error) {
 
 	completed := 0
 	for _, item := range rotations {
+		didComplete := false
 		err := s.DB.Transaction(func(tx *gorm.DB) error {
 			var rotation model.DDNSCredentialRotation
 			if err := tx.Where("id = ? AND status = ?", item.ID, model.RotationStatusGrace).
@@ -329,12 +360,15 @@ func (s *Service) ReconcileExpiredGrace() (int, error) {
 				return err
 			}
 
+			didComplete = true
 			return nil
 		})
 		if err != nil {
 			return completed, err
 		}
-		completed++
+		if didComplete {
+			completed++
+		}
 	}
 
 	return completed, nil

@@ -110,6 +110,7 @@ func (s *Server) networkContextError(c echo.Context, err error) error {
 	case errors.Is(err, networkcontext.ErrNoWAN),
 		errors.Is(err, networkcontext.ErrInvalidInterface),
 		errors.Is(err, networkcontext.ErrDuplicateInterface),
+		errors.Is(err, networkcontext.ErrMultipleDefaultRoutes),
 		errors.Is(err, networkcontext.ErrInvalidWANRole),
 		errors.Is(err, networkcontext.ErrInvalidIPAddress),
 		errors.Is(err, networkcontext.ErrInvalidPublicIPv4),

@@ -128,6 +128,7 @@ func TestValidationRejectsInvalidWANAndLANIdentity(t *testing.T) {
 	}{
 		{"no WAN", ReportInput{}, ErrNoWAN},
 		{"duplicate WAN", ReportInput{WANs: []WANInput{{InterfaceName: "WAN0"}, {InterfaceName: "wan0"}}}, ErrDuplicateInterface},
+		{"multiple default routes", ReportInput{WANs: []WANInput{{InterfaceName: "wan0", DefaultRoute: true}, {InterfaceName: "wan1", DefaultRoute: true}}}, ErrMultipleDefaultRoutes},
 		{"bad public IP", ReportInput{WANs: []WANInput{{InterfaceName: "wan0", PublicIPv4: "192.168.1.1"}}}, ErrInvalidPublicIPv4},
 		{"bad vlan", ReportInput{WANs: []WANInput{{InterfaceName: "wan0"}}, Networks: []SegmentInput{{Name: "POS", VLANID: &badVLAN}}}, ErrInvalidVLAN},
 		{"bad cidr", ReportInput{WANs: []WANInput{{InterfaceName: "wan0"}}, Networks: []SegmentInput{{Name: "POS", IPv4CIDR: "10.0.0.1"}}}, ErrInvalidCIDR},
