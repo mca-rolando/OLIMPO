@@ -2,11 +2,15 @@
 
 OLIMPO is an independent project and the shared control, integration, identity, automation, and user-experience layer for the OLIMPO ecosystem. It coordinates **HERMES** for DDNS and dynamic endpoints, **ARGUS** for multi-site observability, **METIS** for IT service management, and future ecosystem applications.
 
+In this documentation, **OLIMPO Ecosystem** means the complete software ecosystem and target monorepo. **OLIMPO Control Plane** means the independently deployable shared control-plane product.
+
 > **Products remain operationally autonomous; OLIMPO provides shared control-plane capabilities, not mandatory data-plane dependency.**
 
 > **Tenant isolation is a security boundary. Tenant data, identity, credentials, events, integrations, automation, operational state, and audit context must not cross tenant boundaries without explicit authorized platform-level behavior.**
 
 > **The OLIMPO ecosystem must support managed-service-provider operation without making any individual customer the architectural owner of the platform.**
+
+> **Repository consolidation does not imply runtime consolidation.**
 
 If OLIMPO is unavailable, HERMES continues DDNS operations, ARGUS continues collecting and evaluating monitoring data, and METIS continues ticketing and ITSM functions. OLIMPO coordinates and enriches the suite; it does not replace product domain logic or become its mandatory data plane.
 
@@ -21,6 +25,8 @@ OLIMPO is MSP-first and multi-tenant by design. A platform operator can manage m
 ## Status
 
 Current version: **0.1.0-dev**. This repository is in its architecture and governance bootstrap phase. It intentionally contains no production backend, frontend, database, container, or deployment implementation.
+
+The current repository contains the OLIMPO architecture and governance baseline. The accepted target state is a monorepo containing the OLIMPO Control Plane, HERMES, ARGUS, METIS, and carefully bounded shared assets. Product source histories have not yet been imported; migration remains in the planning state and requires separate human approval. Each product will remain independently buildable, testable, deployable, versionable, releasable, observable, and recoverable.
 
 ## Documentation
 
@@ -37,6 +43,9 @@ Current version: **0.1.0-dev**. This repository is in its architecture and gover
 - [Design system](docs/design/design-system-v1.0.md)
 - [Architecture decisions](docs/adr/0001-olimpo-is-a-control-plane.md)
 - [Suite compatibility governance](docs/governance/suite-compatibility-policy-v1.0.md)
+- [Monorepo migration planning](docs/migration/README.md)
+- [Monorepo boundaries](docs/governance/monorepo-boundaries-v1.0.md)
+- [Versioning and release policy](docs/governance/versioning-release-policy-v1.0.md)
 
 ## Repository structure
 

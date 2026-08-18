@@ -18,6 +18,17 @@ This directory is the documentation source of truth for the OLIMPO control plane
 
 - [Suite compatibility policy](governance/suite-compatibility-policy-v1.0.md)
 - [Suite alignment matrix](governance/suite-alignment-matrix-v1.0.md)
+- [Monorepo boundaries](governance/monorepo-boundaries-v1.0.md)
+- [Versioning and release policy](governance/versioning-release-policy-v1.0.md)
+
+## Migration
+
+- [Migration documentation index](migration/README.md)
+- [Monorepo migration plan](migration/monorepo-migration-plan-v1.0.md)
+- [Repository inventory](migration/repository-inventory-v1.0.md)
+- [Target layout](migration/target-layout-v1.0.md)
+- [History, tag, and release preservation](migration/history-tag-release-preservation-v1.0.md)
+- [Rollback plan](migration/rollback-plan-v1.0.md)
 
 ## Experience design
 
@@ -28,4 +39,4 @@ This directory is the documentation source of truth for the OLIMPO control plane
 
 ## Architecture decisions
 
-ADRs [0001](adr/0001-olimpo-is-a-control-plane.md) through [0007](adr/0007-msp-first-multi-tenant-architecture.md) establish the control-plane, autonomy, design-system, event, entity, secrets, and MSP-first multi-tenant decisions. Accepted ADRs are immutable except for status and links to later superseding decisions.
+ADRs [0001](adr/0001-olimpo-is-a-control-plane.md) through [0008](adr/0008-adopt-olimpo-monorepo.md) establish accepted control-plane, autonomy, design-system, event, entity, secrets, MSP-first multi-tenant, and monorepo decisions. [ADR 0009](adr/0009-history-preserving-monorepo-migration-strategy.md) proposes the history-preserving migration technique for human review. Accepted ADRs are immutable except for status and links to later superseding decisions.
