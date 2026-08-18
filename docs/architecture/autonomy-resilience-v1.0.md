@@ -2,7 +2,11 @@
 
 > **Products remain operationally autonomous; OLIMPO provides shared control-plane capabilities, not mandatory data-plane dependency.**
 
+> **Tenant isolation is a security boundary. Tenant data, identity, credentials, events, integrations, automation, operational state, and audit context must not cross tenant boundaries without explicit authorized platform-level behavior.**
+
 ## Required patterns
+
+Local queues, outboxes, caches, checkpoints, dead-letter records, and reconciliation state preserve tenant context. Reconnection never weakens isolation: workloads reauthenticate, validate tenant/resource bindings, and replay only into the original tenant. Backpressure, expiry, repair, and operator tooling cannot merge tenants.
 
 Products persist essential domain work locally and use transactional outbox/local queue patterns where appropriate. Integrations use bounded exponential backoff with jitter, circuit breakers, timeouts, bulkheads, idempotency, event replay, eventual consistency, dead-letter handling, cached last-known-good policy, and explicit reconciliation. Queues have capacity, retention, priority, backpressure, and operator-visible overflow policy; important events are never silently discarded.
 
@@ -37,5 +41,7 @@ Cross-product views are eventually consistent and show freshness. The authoritat
 Recovery after OLIMPO outage reopens circuits gradually, validates cached-policy successors, drains queues with backpressure, rebuilds projections, resumes timers without duplicating actions, re-evaluates expired approvals/maintenance, and compares audit checkpoints. Recovery after product outage follows the same principles while respecting that product's authority.
 
 ## Resilience validation
+
+Isolation tests inject colliding native IDs, forged tenant fields, misrouted events, stale authorization, cross-tenant cache keys, wrong integration credentials, and background-job retries. Recovery is successful only when it preserves tenant boundaries as well as product autonomy.
 
 Future tests inject process failures, latency, packet loss, partitions, full queues, duplicate/out-of-order events, clock skew, stale policy, identity loss, schema incompatibility, and extended isolation. Tests prove essential product operation, bounded resource use, visible degradation, safe replay, idempotent side effects, and complete audit lineage. Capability-specific RTO, RPO, queue retention, cache TTL, and offline-duration limits require human approval before production design.

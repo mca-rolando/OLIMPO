@@ -5,7 +5,7 @@
 
 ## Context
 
-The MCA suite needs shared identity, integration, entity correlation, automation, governance, audit, and experience without moving product domain responsibilities into a central system.
+The OLIMPO ecosystem needs shared identity, integration, entity correlation, automation, governance, audit, and experience without moving product domain responsibilities into a central system or making any customer the platform owner.
 
 ## Decision
 

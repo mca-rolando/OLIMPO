@@ -23,11 +23,15 @@ Logs use timestamps, severity, service/version/environment, operation, result, l
 
 Telemetry excludes passwords, tokens, cookies, authorization headers, secret references that reveal provider paths, and unnecessary personal data. Redaction occurs before export. Access, retention, regional handling, and deletion follow classification and policy.
 
+Tenant-owned telemetry preserves tenant context through authorized collection and querying, while exporters minimize identifiers and prevent tenant data from entering another tenant's dashboard. Logs, traces, health projections, alert routes, and bounded-cardinality metrics use tenant-aware access controls and storage/query boundaries. Platform aggregate health may use minimum necessary signals under explicit platform authorization; it must not expose customer detail across tenants.
+
 ## Ecosystem health
 
 The OLIMPO dashboard can summarize HERMES, ARGUS, METIS, integrations (for example `12/12 Healthy`), event pipeline, automations, notifications, identity connectivity, and recent significant events. Status includes evidence, source, last observation, and staleness. Unknown is not reported as healthy. Product-local telemetry remains operational if OLIMPO is down.
 
 ## Immutable-oriented audit
+
+Audit records carry tenant or explicit platform scope. Tenant audit records, indexes, exports, retention jobs, and access policy are isolated by tenant. Platform-level access records the authorizing capability, purpose, affected tenant set, and outcome. Cross-tenant administrative activity and denied leakage attempts are high-risk audit events. Audit context is preserved through event replay, automation retry, background work, and product reconciliation.
 
 Audit records answer who/what/when/where, source, target, result, correlation ID, request ID, actor and service identity, policy/automation version, and appropriate redacted before/after metadata. Examples include a user changing the ARGUS-to-METIS automation and ARGUS-caused creation of `METIS-10482` linked to its originating event.
 
