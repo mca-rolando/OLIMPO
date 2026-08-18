@@ -1,0 +1,8 @@
+"source_ref","rewritten_tip","action","target_ref","reason"
+"refs/heads/main","3b2a07ae14ad3963b00eea11db1e32cd968c2b30","import-merge","","canonical HERMES mainline"
+"refs/heads/master","47c2aab0e215615b338d8ebc5374eceabeceb7e8","omit-redundant","","fully reachable from canonical history"
+"refs/heads/release/26.08-01","0eed3502904ca9063a0dfc4b9b3434bea3f8135b","omit-redundant","","fully reachable from canonical history and release tag"
+"refs/heads/release/26.08-02","3b2a07ae14ad3963b00eea11db1e32cd968c2b30","omit-redundant","","same rewritten tip as canonical main"
+"refs/heads/v2-0-0","2f215bca7de20125966ac096c8e25a163cd36b15","archive-tag","refs/tags/hermes-archive/v2-0-0","substantive unmerged functional history"
+"refs/heads/v2-0-1/2","1b5842b3097e46fd8e00d9ddb1dac29172896400","archive-tag","refs/tags/hermes-archive/v2-0-1-2","substantive unmerged functional history"
+"refs/heads/dependabot/*","","external-only","","automated unmerged dependency history retained in source bundle and provenance"
