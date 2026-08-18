@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="icon" href="/static/icons/favicon.ico">
+
+    <title>{{.title}}</title>
+
+    <!-- Bootstrap core CSS -->
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+
+    <!-- JQueryUI base CSS -->
+    <link rel="stylesheet" href="/static/css/jquery-ui.min.css"/>
+
+    <!-- Custom styles for this template -->
+    <link href="/static/css/narrow-jumbotron.css" rel="stylesheet">
+</head>
+
+<body>
+
+<div class="container">
+    <!-- Navigation -->
+    <div class="header clearfix">
+        <nav>
+            <ul class="nav nav-pills float-right">
+                <li class="nav-item">
+                    <a class="nav-link nav-hosts" href="/admin/hosts">Hosts</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link nav-cnames" href="/admin/cnames">CNames</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link nav-logs" href="/admin/logs">Logs</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link nav-logout" href="/admin/logout" id="logout">Logout</a>
+                </li>
+            </ul>
+        </nav>
+        <h3 class="text-muted">{{.title}}</h3>
+    </div>
+
+    <!-- Page Content -->
+    {{template "content" .}}
+
+    <footer class="footer">
+        <p>&copy; {{.title}} {{year}}</p>
+    </footer>
+
+</div> <!-- /container -->
+
+<!-- Bootstrap core JavaScript
+================================================== -->
+<!-- Placed at the end of the document so the pages load faster -->
+<!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+<script src="/static/js/jquery-3.4.1.min.js"></script>
+<!-- popper.js@1.16.0 -->
+<script src="/static/js/popper.min.js"></script>
+<script src="/static/js/bootstrap.min.js"></script>
+<script src="/static/js/jquery-ui.min.js"></script>
+<script src="/static/js/actions-1.0.0.js"></script>
+</body>
+</html>
