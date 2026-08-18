@@ -5,9 +5,13 @@ Repository version: 0.1.0-dev
 
 ## Executive summary
 
-OLIMPO is the shared control plane for the MCA application suite. It gives HERMES, ARGUS, METIS, and future products a governed integration surface, consistent identity and experience, and shared operational capabilities without absorbing their domain responsibilities.
+OLIMPO is the independent, vendor-neutral shared control plane for the OLIMPO ecosystem. It gives HERMES, ARGUS, METIS, and future products a governed integration surface without absorbing their domain responsibilities. It is MSP-first and multi-tenant by design; no individual customer is the architectural owner of the platform.
 
 > **Products remain operationally autonomous; OLIMPO provides shared control-plane capabilities, not mandatory data-plane dependency.**
+
+> **Tenant isolation is a security boundary. Tenant data, identity, credentials, events, integrations, automation, operational state, and audit context must not cross tenant boundaries without explicit authorized platform-level behavior.**
+
+> **The OLIMPO ecosystem must support managed-service-provider operation without making any individual customer the architectural owner of the platform.**
 
 This is the dominant architectural constraint. Routine DDNS, monitoring, and ITSM operation must not require synchronous OLIMPO availability. The platform favors asynchronous, replayable integration and graceful degradation, avoiding a distributed monolith.
 
@@ -28,6 +32,30 @@ This phase does not implement applications, replace product domain logic, centra
 7. Shared experience components are OLIMPO-owned, accessible, and theme-native.
 8. Cached policy and local queues enable graceful degradation and later reconciliation.
 9. Technology choices remain reversible behind internal abstractions until accepted by ADR.
+10. Tenant context is derived from trusted identity, route, resource, or integration binding and enforced server-side; it is never trusted merely because a client supplied it.
+11. Cross-tenant access, correlation, integration, and automation are denied by default. Explicit platform functions use minimum necessary information, strong authorization, and audit.
+
+## MSP and multi-tenancy model
+
+The long-term operating model permits a platform owner or MSP operator to serve multiple independent customer tenants. A tenant is the primary customer security, policy, and operational isolation boundary. An Organization is a business or administrative unit inside a tenant; a tenant may contain one or more organizations. Organizations contain Sites, which may contain physical or logical Locations. Users and Teams receive tenant-specific capability grants; Integrations, Applications, and Policies are enabled and owned at explicit platform or tenant scope.
+
+```mermaid
+flowchart TB
+  PO[Platform owner / MSP operator] --> P[OLIMPO platform]
+  P --> TA[Tenant A]
+  P --> TB[Tenant B]
+  P --> TC[Tenant C]
+  TA --> OA[Organization]
+  OA --> SA[Sites]
+  SA --> LA[Locations]
+  TA --> CA[Users / Teams / Integrations / Applications / Policies]
+```
+
+Tenant isolation is not a UI filter. Database queries, API object authorization, search indexes, cache keys, event streams and subjects, correlation windows and state, automations, notifications, audit records, secret references, integration callbacks, deep links, maintenance windows, feature flags, health projections, background jobs, and future files or attachments must carry and enforce appropriate tenant scope. Tenant-aware repositories and mandatory service-operation context provide primary safeguards. PostgreSQL Row-Level Security may be evaluated later as defense in depth but is not selected here. Cross-tenant leakage tests are required.
+
+Platform-owned resources are distinct from tenant-owned resources. Platform/MSP roles can operate across tenants only through explicit policy and strong audit. Tenant roles operate only within assigned tenants and capabilities. Aggregate platform health is a possible authorized exception, but it must use minimum necessary information and never expose one customer's data to another.
+
+Logical multi-tenancy does not prescribe physical topology. Shared, dedicated, and hybrid deployment options remain open for later ADRs. A single-customer deployment represents one tenant and uses the same contracts.
 
 ## Ecosystem context
 
@@ -37,7 +65,7 @@ flowchart LR
   O <-->|Versioned contracts| H[HERMES<br/>DDNS authority]
   O <-->|Versioned contracts| A[ARGUS<br/>Monitoring authority]
   O <-->|Versioned contracts| M[METIS<br/>ITSM authority]
-  O --> I[Microsoft Entra ID]
+  O --> I[Tenant-configured identity providers]
   O --> S[External Secrets Provider]
   O --> N[Notification Channels]
   H -. local domain operation .-> H
@@ -81,19 +109,21 @@ Detailed boundaries are defined in the [control-plane](control-plane-v1.0.md), [
 
 Caching never silently changes authority. Cached values carry source and freshness metadata; reconciliation follows the source product after partitions.
 
+Customer-context canonical entities and product mappings are tenant-scoped. `tenant_id` is mandatory for tenant-owned records and mappings; `organization_id`, `site_id`, and `location_id` are required only when the record is owned or constrained at that narrower scope. Native identifiers are qualified by tenant, source application, and native type unless a reviewed contract guarantees broader uniqueness.
+
 ## Identity and security
 
-Microsoft Entra ID is the primary enterprise identity provider through OIDC/OAuth 2.0, providing SSO and MFA policy. OLIMPO maps shared roles to product-specific permissions, while products enforce authorization locally. A tightly controlled local bootstrap administrator and audited emergency access remain available. Service identities use scoped, short-lived credentials and rotation; legacy API keys are isolated compatibility mechanisms with migration plans. Secret values remain in an external provider. See [Identity and security](identity-security-v1.0.md).
+Tenants may configure Microsoft Entra ID or another OIDC provider, including tenant-specific metadata, discovery, claim mapping, SSO, and provider-enforced MFA. Entra remains a preferred enterprise provider rather than a global company tenant. Controlled local/bootstrap identity and strongly audited platform emergency access remain available where supported. Capability grants map to product permissions, while products enforce authorization locally. Secret values remain in an external provider. See [Identity and security](identity-security-v1.0.md).
 
 Security requires least privilege, zero trust where practical, encryption in transit and at rest where applicable, input validation, rate limiting, secure cookies, CSRF and XSS defenses, Content Security Policy, dependency hygiene, supply-chain review, and immutable-oriented auditing.
 
 ## Events, correlation, and automation
 
-Events use a versioned common envelope with globally unique IDs, UTC timestamps, source, type, severity, correlation/causation IDs, entity references, and an evolvable payload. Consumers handle at-least-once delivery, duplicates, reordering, retry, and dead-letter recovery.
+Tenant-owned events use a versioned common envelope with trustworthy tenant ID, globally unique event ID, UTC timestamp, source, type, severity, correlation/causation IDs, entity references, and an evolvable payload. Routing, retention, replay, correlation, dead-letter handling, and observability preserve tenant context.
 
-Correlation combines entity and time context—for example, gateway, switch, access-point, and camera outages at one site—into an explainable operational condition. Cross-product evidence such as a HERMES DDNS failure plus ARGUS gateway and VPN failures can strengthen a connectivity hypothesis. Rules, inputs, confidence, suppression, and decisions remain auditable.
+Correlation combines entity and time context inside one tenant—for example, gateway, switch, access-point, and camera outages at one Tenant A site. A Tenant B event cannot participate. Cross-product evidence within the same tenant can strengthen a hypothesis.
 
-Automations model trigger, conditions, optional delay, action, retry, timeout, failure path, escalation, notification, correlation context, audit, and optional approval. Causation lineage, execution depth, deduplication, rate limits, and explicit re-entry policies prevent loops. See [Events](event-model-v1.0.md) and [Automation](automation-model-v1.0.md).
+Automations have tenant or explicit platform ownership and validate trigger, target, integration, credential, and entity scope. A Tenant A ARGUS event cannot invoke Tenant B METIS. Causation lineage and loop controls remain mandatory. OLIMPO may provide tenant capability or service-tier context to METIS while METIS remains authoritative for ticket and SLA lifecycle; pricing, billing, subscriptions, and contracts are outside this baseline.
 
 ## UI/UX
 
@@ -105,7 +135,7 @@ Native Light, Dark, and System themes are required, with a persistent quick sele
 
 Logical components may later be deployed independently, but deployment topology must not leak into product contracts. Products retain local queues, cached safe policy, local authorization decisions where possible, and essential notifications. Adapters isolate failures with timeouts, exponential backoff plus jitter, circuit breakers, idempotency stores, replay, and dead-letter handling. See [Autonomy and resilience](autonomy-resilience-v1.0.md).
 
-Candidate technologies—not irreversible selections—are React/TypeScript and `@mca/olimpo` packages, Python 3/FastAPI, PostgreSQL, and NATS JetStream behind an OLIMPO event abstraction. Redis is used only for a justified coordination or cache need. Production selections require ADRs and operational evaluation.
+Candidate technologies—not irreversible selections—are React/TypeScript with OLIMPO-owned packages whose namespace remains unresolved, Python 3/FastAPI, PostgreSQL, and NATS JetStream behind an OLIMPO event abstraction. Redis is used only for a justified coordination or cache need. Production selections require ADRs and operational evaluation.
 
 ## Observability and audit
 
@@ -117,7 +147,7 @@ APIs are OpenAPI-first, machine-readable, and explicitly versioned. Events have 
 
 ## Testing strategy
 
-Future implementation must include unit and component tests; API and event contract tests; integration tests with fakes; resilience and partition tests; security and dependency tests; WCAG accessibility and visual-regression tests; and end-to-end tests. The `ARGUS alert -> OLIMPO correlation -> METIS incident` path must run without production systems and verify duplicates, delay, ordering, partial failure, recovery, authorization, and audit.
+Future implementation must include unit and component tests; API and event contract tests; integration tests with fakes; resilience and partition tests; security and dependency tests; WCAG accessibility and visual-regression tests; and end-to-end tests. The `ARGUS alert -> OLIMPO correlation -> METIS incident` path must run without production systems and verify duplicates, delay, ordering, partial failure, recovery, authorization, audit, and attempts to combine tenant inputs or target another tenant.
 
 ## Future extensibility
 
@@ -140,4 +170,4 @@ Principal risks are accidental synchronous coupling, conflicting identity owners
 
 ## Open questions
 
-Human decisions are required before implementation on: deployment and tenancy model; supported product-version/deprecation window; canonical organization/site governance and conflict resolution; approved secrets provider; event-backbone selection and retention objectives; audit retention and legal requirements; notification provider ownership; recovery objectives by capability; initial Entra tenant/application topology; and whether AI assistance is in the first implementation roadmap. These questions do not block this documentation baseline.
+Human decisions are required before implementation on: physical deployment and data-isolation topology; whether PostgreSQL RLS is adopted as defense in depth; supported product-version/deprecation window; tenant and canonical organization/site stewardship; approved secrets provider; event-backbone selection and per-tenant retention objectives; audit retention and legal requirements; notification provider ownership; recovery objectives by capability; supported identity providers and per-tenant discovery rules; the initial capability catalog; and whether AI assistance is in the first implementation roadmap. These questions do not block this documentation baseline.

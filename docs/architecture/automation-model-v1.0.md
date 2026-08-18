@@ -2,7 +2,9 @@
 
 ## Definition
 
-An automation definition is versioned and contains owner, scope, enabled state, trigger, conditions, optional delay, actions, timeout, retry policy, failure path, escalation, notification, correlation context, approval policy, concurrency/rate limits, and audit metadata. Publishing a version requires schema, authorization, target-capability, loop, and safety validation.
+An automation definition is versioned and has either tenant ownership or explicit platform ownership. It contains owner, scope, enabled state, trigger, conditions, optional delay, actions, timeout, retry policy, failure path, escalation, notification, correlation context, approval policy, concurrency/rate limits, and audit metadata. Publishing a version requires schema, authorization, target-capability, loop, and safety validation.
+
+Tenant-owned definitions, executions, schedules, approvals, deduplication keys, correlation context, notifications, and audit carry `tenant_id`. Processing validates that the trigger, canonical entities, action target, integration, secret reference, and service identity share that tenant. Cross-tenant actions are denied by default. Platform-owned automation is a separate, strongly authorized class with minimum necessary access and explicit audit.
 
 ```mermaid
 flowchart TB
@@ -21,6 +23,7 @@ flowchart TB
 
 1. Validate and deduplicate the trigger.
 2. Resolve authorized canonical entity and correlation context.
+   Reject mixed-tenant evidence before evaluation.
 3. Evaluate conditions against a recorded input snapshot.
 4. Schedule delay durably, then re-evaluate time-sensitive conditions.
 5. Obtain approval for policy-classified actions.
@@ -49,6 +52,6 @@ sequenceDiagram
 
 Causation IDs form a lineage graph. The engine enforces maximum depth, repeated event/action pair detection, per-rule cooldown, rate and concurrency limits, and explicit rules for whether an automation-produced event can re-enter its origin. Cycles detected at definition time block publication; runtime cycles quarantine the execution and alert an operator.
 
-Actions use least-privilege service identities. Partial success is represented explicitly; compensation is a separate authorized action, not an implicit distributed transaction. Exhausted failures enter an operator-visible queue with safe replay. Maintenance suppression is evaluated but never discards the trigger; the reason and decision are audited.
+Actions use least-privilege service identities. An ARGUS Site Offline event for Tenant A may create a METIS incident and notify routes owned by Tenant A, but can never target Tenant B through a reused identifier or credential. Causation and tenant scope remain attached through retries, replay, failure queues, and loop detection. Partial success is represented explicitly; compensation is a separate authorized action, not an implicit distributed transaction. Exhausted failures enter an operator-visible queue with safe replay. Maintenance suppression is evaluated but never discards the trigger; the reason and decision are audited.
 
 AI may later recommend rules or steps but cannot silently publish definitions or execute consequential remediation. Policy may require human approval, and core processing remains deterministic without AI.

@@ -1,8 +1,14 @@
 # Integration Model v1.0
 
+> **Tenant isolation is a security boundary. Tenant data, identity, credentials, events, integrations, automation, operational state, and audit context must not cross tenant boundaries without explicit authorized platform-level behavior.**
+
+> **The OLIMPO ecosystem must support managed-service-provider operation without making any individual customer the architectural owner of the platform.**
+
 ## Registry and contracts
 
 Each application and service registers a stable ID, name, version, user base URL, API and health endpoints, capabilities, supported event types and actions, integration state, latest health result/time, contract versions, and extensible non-secret metadata. Future products integrate by capability and contract; OLIMPO code must not assume only HERMES, ARGUS, and METIS.
+
+Registry definitions distinguish a platform-global application or service from a tenant-enabled instance. Tenant-owned integrations include `tenant_id`, owner, allowed capabilities, target scope, secret references, callback metadata, and health without secret values. Platform-owned integrations are a separate class and cannot be mistaken for tenant resources.
 
 APIs are OpenAPI-first, versioned, authenticated, authorized, deadline-bound, and machine-readable. Adapters translate product-native contracts to OLIMPO contracts and isolate rate limits, circuit breakers, retries, and compatibility. A compatibility matrix records OLIMPO, product, API, and event versions. Additive evolution is preferred; breaking changes have a new version, deprecation window, migration guidance, compatibility tests, and upgrade sequencing that permits independent product releases.
 
@@ -11,6 +17,12 @@ APIs are OpenAPI-first, versioned, authenticated, authorized, deadline-bound, an
 Asynchronous events carry facts and trigger eventual reactions. Explicit user actions may use synchronous APIs when immediate feedback matters, with graceful unavailable/stale states and no hidden indefinite retry. Writes carry idempotency keys; reads indicate freshness. No integration spans product databases as one transaction.
 
 Validation covers schema, capability, authorization, entity scope, destination state, idempotency, and policy. Failures are classified as transient, permanent, authorization, validation, conflict, or unknown. Bounded retry applies only where safe; exhausted work enters an operator-visible recovery path and audit trail.
+
+## Tenant integration boundary
+
+Customer integration credentials and secret references belong to exactly one tenant context. A tenant cannot reuse another tenant's credentials accidentally, even if provider account IDs match. Cross-tenant integration is forbidden by default. Incoming callbacks and webhooks resolve tenant context from a cryptographically validated or otherwise trusted binding and verify it against the integration; a tenant ID supplied in an untrusted body is insufficient.
+
+Deep links include tenant context and recheck tenant, resource, and capability authorization at the destination; tenant identifiers are never access grants. Federated search authorizes query and result per user, tenant, organization, and product and uses tenant-isolated indexes. Notifications, maintenance windows, feature flags, health projections, and configuration have explicit platform or tenant scope. Tenant-owned destinations, templates, schedules, native identifiers, and cache keys cannot resolve in another tenant.
 
 ## Deep links and suite navigation
 

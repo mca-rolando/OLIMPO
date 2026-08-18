@@ -1,8 +1,12 @@
 # OLIMPO
 
-OLIMPO is the shared control, integration, identity, automation, and user-experience layer for the MCA application ecosystem. The initial suite includes **HERMES** for DDNS and dynamic endpoints, **ARGUS** for UniFi multi-site observability, and **METIS** for IT service management.
+OLIMPO is an independent project and the shared control, integration, identity, automation, and user-experience layer for the OLIMPO ecosystem. It coordinates **HERMES** for DDNS and dynamic endpoints, **ARGUS** for multi-site observability, **METIS** for IT service management, and future ecosystem applications.
 
 > **Products remain operationally autonomous; OLIMPO provides shared control-plane capabilities, not mandatory data-plane dependency.**
+
+> **Tenant isolation is a security boundary. Tenant data, identity, credentials, events, integrations, automation, operational state, and audit context must not cross tenant boundaries without explicit authorized platform-level behavior.**
+
+> **The OLIMPO ecosystem must support managed-service-provider operation without making any individual customer the architectural owner of the platform.**
 
 If OLIMPO is unavailable, HERMES continues DDNS operations, ARGUS continues collecting and evaluating monitoring data, and METIS continues ticketing and ITSM functions. OLIMPO coordinates and enriches the suite; it does not replace product domain logic or become its mandatory data plane.
 
@@ -11,6 +15,8 @@ If OLIMPO is unavailable, HERMES continues DDNS operations, ARGUS continues coll
 OLIMPO provides a consistent suite experience and governed integration layer: a shared design system and application shell, application/service registry, canonical cross-product identities, versioned events and APIs, explainable correlation, controlled automation, shared identity policy, global navigation and search, notification routing, maintenance context, audit, and ecosystem health.
 
 OLIMPO does not automatically own product data. HERMES remains authoritative for DDNS state, ARGUS for monitoring observations, and METIS for ticket lifecycle. OLIMPO owns or maintains only control-plane records such as canonical mappings, integration configuration, event/automation state, cached summaries, and audit evidence.
+
+OLIMPO is MSP-first and multi-tenant by design. A platform operator can manage multiple isolated tenants, their organizations and sites, and the applications enabled for each tenant. No customer organization is globally assumed or made the platform's architectural owner, and single-customer deployment remains possible without changing tenant-aware contracts.
 
 ## Status
 
@@ -30,6 +36,7 @@ Current version: **0.1.0-dev**. This repository is in its architecture and gover
 - [Autonomy and resilience](docs/architecture/autonomy-resilience-v1.0.md)
 - [Design system](docs/design/design-system-v1.0.md)
 - [Architecture decisions](docs/adr/0001-olimpo-is-a-control-plane.md)
+- [Suite compatibility governance](docs/governance/suite-compatibility-policy-v1.0.md)
 
 ## Repository structure
 
@@ -41,6 +48,6 @@ The baseline requires least privilege, server-side authorization, secure default
 
 ## Future implementation direction
 
-Subject to ADR review, the leading candidates are TypeScript and React with OLIMPO-owned shared packages for the frontend, Python 3 and FastAPI for backend services, PostgreSQL for durable control-plane state, and NATS JetStream behind an internal event abstraction. Redis is optional only where a measured need exists. APIs should be OpenAPI-first and machine-readable contracts versioned.
+Subject to ADR review, the leading candidates are TypeScript and React with OLIMPO-owned shared packages for the frontend, Python 3 and FastAPI for backend services, PostgreSQL for durable control-plane state, and NATS JetStream behind an internal event abstraction. The package namespace remains unresolved. Redis is optional only where a measured need exists. APIs should be OpenAPI-first and machine-readable contracts versioned.
 
 Licensed under the [MIT License](LICENSE).

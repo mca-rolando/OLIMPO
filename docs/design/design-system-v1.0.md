@@ -24,6 +24,6 @@ Tables preserve headers, keyboard access, responsive alternatives, sorting/filte
 
 Shared components are documented in Storybook or an equivalent showcase with states, accessibility notes, usage guidance, and visual tests. Changes use semantic versioning, accessibility review, cross-theme screenshots, migration notes, and deprecation windows. Products contribute through review but do not fork core patterns casually. Exceptions are documented, measured, and either product-specific or promoted into the system.
 
-Future package naming may use `@mca/olimpo`, with separate tokens, components, icons, and shell packages if justified. Package structure remains an architecture recommendation until implementation review.
+The eventual package namespace is an unresolved implementation and branding decision. Separate tokens, components, icons, and shell packages may be used if justified. Customer presentation extensions may include a tenant logo, display name, approved accent configuration, support contact, or portal domain, but they cannot redefine OLIMPO semantic status colors, structural patterns, or accessibility requirements. The OLIMPO Design System remains authoritative.
 
 See [theme requirements](light-dark-theme-v1.0.md), [application shell](application-shell-v1.0.md), and [kiosk layout](kiosk-layout-v1.0.md).

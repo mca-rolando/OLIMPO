@@ -14,6 +14,11 @@ This directory is the documentation source of truth for the OLIMPO control plane
 - [Telemetry, health, and immutable-oriented audit](architecture/observability-audit-v1.0.md)
 - [Autonomy, failure modes, and recovery](architecture/autonomy-resilience-v1.0.md)
 
+## Governance
+
+- [Suite compatibility policy](governance/suite-compatibility-policy-v1.0.md)
+- [Suite alignment matrix](governance/suite-alignment-matrix-v1.0.md)
+
 ## Experience design
 
 - [Design system](design/design-system-v1.0.md)
@@ -23,4 +28,4 @@ This directory is the documentation source of truth for the OLIMPO control plane
 
 ## Architecture decisions
 
-ADRs [0001](adr/0001-olimpo-is-a-control-plane.md) through [0006](adr/0006-external-secrets-management.md) establish the initial control-plane, autonomy, design-system, event, entity, and secrets decisions. Accepted ADRs are immutable except for status and links to later superseding decisions.
+ADRs [0001](adr/0001-olimpo-is-a-control-plane.md) through [0007](adr/0007-msp-first-multi-tenant-architecture.md) establish the control-plane, autonomy, design-system, event, entity, secrets, and MSP-first multi-tenant decisions. Accepted ADRs are immutable except for status and links to later superseding decisions.
