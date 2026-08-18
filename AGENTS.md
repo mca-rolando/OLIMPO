@@ -10,6 +10,8 @@ OLIMPO is an independent, vendor-neutral project and the shared control, integra
 
 > **The OLIMPO ecosystem must support managed-service-provider operation without making any individual customer the architectural owner of the platform.**
 
+> **Repository consolidation does not imply runtime consolidation.**
+
 Architectural boundaries take precedence over implementation convenience. Never make routine product domain operation synchronously dependent on OLIMPO and never create a distributed monolith.
 
 ## Repository rules
@@ -23,6 +25,9 @@ Architectural boundaries take precedence over implementation convenience. Never 
 - Never access real credentials. Never write secrets, tokens, private endpoints, or sensitive configuration to the repository, tests, logs, examples, or reports.
 - Preserve an MSP-first, multi-tenant-by-design architecture. A single-customer deployment must use the same tenant-aware contracts rather than introduce global customer assumptions.
 - Treat cross-tenant leakage as a security defect and cross-product architectural changes as suite-wide compatibility work.
+- Preserve independent build, test, deployment, version, release, observability, recovery, domain ownership, data ownership, and failure boundaries for the OLIMPO Control Plane, HERMES, ARGUS, and METIS. A full-repository build must not be required for routine isolated product work.
+- Do not place product domain logic in shared packages merely to remove duplication. Shared code must use versioned contracts and must not bypass runtime service, identity, authorization, tenant, event, secret, or data boundaries.
+- Use lowercase filesystem paths and uppercase product names in prose. Distinguish the complete **OLIMPO Ecosystem** from the **OLIMPO Control Plane**.
 
 ## Product and data boundaries
 
@@ -67,3 +72,7 @@ Future implementation changes require proportionate unit, component, API-contrac
 Run relevant formatting, link, schema, and test checks before handoff. Document assumptions, failure behavior, operational impact, compatibility impact, and security implications. Update architecture documents and ADRs when boundaries or decisions change.
 
 Every cross-cutting decision involving tenancy, identity, RBAC, security, entities, events, integrations, automation, audit, secrets, design, deep links, or compatibility must identify its impact on OLIMPO, HERMES, ARGUS, METIS, and future ecosystem products. Do not claim adoption by a product without review and evidence.
+
+## Monorepo instruction hierarchy
+
+The root `AGENTS.md` governs ecosystem-wide security, tenancy, Git safety, repository conventions, shared contracts, compatibility, and Design System policy. After migration, `platform/olimpo/AGENTS.md` and `products/<product>/AGENTS.md` add domain-specific rules for their trees. Nested instructions may be stricter but cannot weaken root tenant isolation, product autonomy, security, history preservation, or Git-safety rules. Product instructions own domain behavior; root governance owns cross-product interfaces and repository policy. When rules conflict, stop and resolve the conflict through documentation or an ADR rather than silently selecting the convenient rule.
