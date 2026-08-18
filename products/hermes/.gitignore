@@ -1,0 +1,23 @@
+# Runtime data
+/data/
+/config/*.local
+/backups/
+*.db
+*.db-shm
+*.db-wal
+
+# Secrets
+.env
+*.key
+*.pem
+!*.example
+
+# Build output
+/bin/
+/dist/
+coverage.out
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store

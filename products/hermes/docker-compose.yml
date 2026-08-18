@@ -1,0 +1,21 @@
+services:
+  hermesddns:
+    build:
+      context: .
+      dockerfile: deployment/docker/Dockerfile
+      args:
+        VERSION: ${HERMES_VERSION:-26.08-02}
+        COMMIT: ${HERMES_COMMIT:-local}
+        BUILD_TIME: ${HERMES_BUILD_TIME:-local}
+    container_name: hermesddns
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "8080:8080/tcp"
+    volumes:
+      - ./data:/opt/hermesddns/data
+      - ./bind-data:/var/cache/bind
+      - ./backups:/opt/hermesddns/backups
